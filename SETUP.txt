@@ -1,35 +1,30 @@
-FRAME TRY-ON MIRROR — SETUP (one time, about 5 minutes)
+FRAME TRY-ON MIRROR — v2 (customer wears your real frame)
 
-1. PUT IT ONLINE (free)
-   - On a computer, unzip tryon-mirror.zip.
-   - Go to https://app.netlify.com/drop and sign up free (Google login is fine).
-   - Drag the unzipped "app" folder onto the page. Netlify gives you a link like
-     https://something.netlify.app  (you can rename it under Site settings).
+LINK: https://adrianpdk1999-byte.github.io/tryon-mirror/
 
-2. SET UP THE TABLET (Android, Chrome)
-   - Open the link in Chrome while on Wi-Fi.
-   - Tap English, allow the camera, and do one scan. This downloads the face AI (about 10 MB).
-   - Chrome menu (⋮) > "Add to Home screen" > Install.
-   - Open it from the home-screen icon. It runs full-screen.
-   - Check: finish a scan > "Done · Show staff". The bottom line should say "● Offline ready".
-     After that it works with Wi-Fi off.
+HOW CUSTOMERS USE IT
+1. Choose English or Bahasa Malaysia.
+2. Put on a frame, type the size printed inside the arm (e.g. 52 □ 18 – 145), tap the frame shape.
+3. Look at the screen: the AI reads face shape, face width and PD, then takes a photo (3-2-1).
+4. Scores out of 10: Design match, Size fit and Overall, each with a reason.
+5. "Try another frame" to compare more frames, or "Send to my WhatsApp".
+6. Customer types their number and ticks the consent box. The screen then asks for staff.
 
-3. KIOSK TIPS
-   - Settings > Display > Screen timeout: longest. The app also keeps the screen awake while in use.
-   - Optional: Settings > Security > "App pinning" to lock the tablet to this app.
-   - Mount the tablet at face height, upright (portrait), with good light on the face (not behind).
-   - The app goes back to the language screen on its own when nobody is using it.
+STAFF: SENDING TO WHATSAPP (needs internet)
+1. Exit Guided Access (iPad: triple-click the side/home button) or app pinning (Android).
+2. Tap "1 · Save photo" and save the image to Photos/Gallery.
+3. Tap "2 · Open WhatsApp". A chat opens with the customer's number and the summary typed.
+4. Attach the saved photo and send. Come back to the app, tap "New customer", turn Guided Access back on.
+   (If the customer is already a saved contact, "Share photo + text" sends both in one go.)
 
-4. PRACTICE MODE (no face needed)
-   Add ?mock=round to the link (also oval, square, heart, long) to see a demo face. Useful for training staff.
+DEVICE SET-UP (once)
+- iPad: open the link in Safari > Share > Add to Home Screen. Open from the icon, do one scan online.
+  Then Settings > Accessibility > Guided Access: on. Open the app, triple-click to start Guided Access.
+- Android tablet: open the link in Chrome > ⋮ > Add to Home screen > Install. Do one scan online.
+  Settings > Security > App pinning to lock it.
+- After the first scan it works offline. Only WhatsApp sending needs internet.
 
-5. CHANGING THINGS (edit index.html with any text editor, then drag the folder to Netlify again)
-   - Shop name:  BRAND = { name: "Demo Optical" }
-   - Frames:     the FRAMES list. Each frame needs shape, lens width A, lens height B, bridge DBL,
-                 total width W (mm), colour and rim type.
-   - Face-shape thresholds: SHAPE_RULES. The staff screen shows the raw ratios
-     (L/W, Jaw, Fhd) so you can fine-tune after scanning a few people.
-   After any change, also change VERSION in sw.js (e.g. "tryon-v2") so tablets pick up the update.
-
-PRIVACY: the camera image is processed on the tablet only. Nothing is saved or uploaded.
-ACCURACY: mm measurements are estimates (±3–4 mm). Confirm PD with a PD ruler or pupillometer before ordering lenses.
+PRIVACY: photos stay on the device and are only sent when the customer asks and ticks consent.
+The app clears everything and returns to the start screen when left idle.
+ACCURACY: sizes and PD are camera estimates (±3–4 mm). Confirm PD with a PD ruler before ordering lenses.
+PRACTICE MODE: add ?mock=round to the link (also oval, square, heart, long) to test without a face.

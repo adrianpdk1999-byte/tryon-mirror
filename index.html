@@ -6,21 +6,18 @@
 <title>Frame Try-On Mirror</title>
 <meta name="theme-color" content="#1C0A0E">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
-/* Layout: portrait kiosk. Live mirror fills the top; a wood-trimmed panel below holds the picks. */
+/* Layout: portrait kiosk. Full-height screens; live mirror on top, wood-trimmed panel below. */
 :root{
-  --ink:#1C0A0E;          /* page ground, deep maroon-black */
-  --maroon:#6E1B28;       /* brand maroon */
-  --maroon-hi:#8E2738;
-  --wood:#B4804F;         /* wood accent */
-  --wood-lt:#E3C49C;
-  --wood-dk:#7C522C;
-  --paper:#F7ECDF;        /* text on dark */
-  --muted:rgba(247,236,223,.68);
-  --line:rgba(227,196,156,.22);
-  --panel:#24100F;
+  --ink:#1C0A0E; --maroon:#6E1B28; --maroon-hi:#8E2738;
+  --wood:#B4804F; --wood-lt:#E3C49C; --wood-dk:#7C522C;
+  --paper:#F7ECDF; --muted:rgba(247,236,223,.68); --line:rgba(227,196,156,.22);
+  --panel:#24100F; --field:#2E1614;
   --good:#7FBF7A; --warn:#E5B35A;
   --f-display:"Noto Serif","Georgia","Times New Roman",serif;
   --f-body:"Roboto","Segoe UI",system-ui,-apple-system,sans-serif;
@@ -34,280 +31,356 @@ html,body{height:100%;margin:0;background:var(--ink);color:var(--paper);font-fam
   -webkit-user-select:none;user-select:none;touch-action:manipulation}
 [hidden]{display:none!important}
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
-button:focus-visible{outline:3px solid var(--wood-lt);outline-offset:3px}
+button:focus-visible,input:focus-visible{outline:3px solid var(--wood-lt);outline-offset:3px}
+button:disabled{opacity:.4;cursor:default}
 .screen{position:fixed;inset:0;display:flex;flex-direction:column;
   padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+.scroll{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.wrap{max-width:760px;width:100%;margin:0 auto;padding:24px max(20px,env(safe-area-inset-right,0px)) 28px max(20px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:20px}
 
-/* Brand mark */
 .brand{display:flex;align-items:center;gap:12px}
-.brand-mark{width:46px;height:46px;border-radius:50%;background:var(--wood-grain);display:grid;place-items:center;
-  box-shadow:inset 0 0 0 2px rgba(255,240,220,.25)}
-.brand-mark svg{width:30px;height:30px}
-.brand-name{font-family:var(--f-display);font-size:22px;letter-spacing:.06em;text-transform:uppercase}
+.brand-mark{width:44px;height:44px;border-radius:50%;background:var(--wood-grain);display:grid;place-items:center;box-shadow:inset 0 0 0 2px rgba(255,240,220,.25);flex:0 0 auto}
+.brand-mark svg{width:28px;height:28px}
+.brand-name{font-family:var(--f-display);font-size:21px;letter-spacing:.06em;text-transform:uppercase}
 .brand-sub{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.steps-ind{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--wood-lt)}
+h1.t{font-family:var(--f-display);font-weight:500;font-size:clamp(28px,5vw,40px);line-height:1.12;margin:0;text-wrap:balance}
+p.lead{margin:0;color:var(--muted);font-size:17px;line-height:1.5}
 
 /* Welcome */
-#welcome{background:
-  radial-gradient(120% 70% at 50% 0%,rgba(142,39,56,.55),transparent 60%),
-  radial-gradient(90% 60% at 50% 100%,rgba(180,128,79,.20),transparent 70%),var(--ink);
+#welcome{background:radial-gradient(120% 70% at 50% 0%,rgba(142,39,56,.55),transparent 60%),radial-gradient(90% 60% at 50% 100%,rgba(180,128,79,.20),transparent 70%),var(--ink);
   align-items:center;justify-content:space-between;padding-block:max(36px,env(safe-area-inset-top,0px)) max(30px,env(safe-area-inset-bottom,0px))}
-#welcome .top{width:100%;display:flex;justify-content:center}
-.hero{display:flex;flex-direction:column;align-items:center;gap:22px;text-align:center;padding:0 32px}
-#attract{width:min(560px,86vw);height:min(220px,30vw)}
-.hero h1{font-family:var(--f-display);font-weight:500;font-size:clamp(34px,6.4vw,58px);line-height:1.08;margin:0;text-wrap:balance}
+.hero{display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center;padding:0 28px}
+#attract{width:min(540px,84vw);height:min(200px,30vw)}
+.hero h1{font-family:var(--f-display);font-weight:500;font-size:clamp(32px,6.2vw,56px);line-height:1.08;margin:0;text-wrap:balance}
 .hero h1 .bm{display:block;font-size:.56em;color:var(--wood-lt);margin-top:10px;font-style:italic}
-.lang-q{font-size:15px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:8px}
-.lang-row{display:flex;gap:18px;flex-wrap:wrap;justify-content:center}
-.lang-btn{min-width:250px;padding:22px 30px;border-radius:16px;font-size:24px;font-weight:500;
-  background:var(--maroon);box-shadow:inset 0 0 0 2px rgba(227,196,156,.35),0 10px 30px rgba(0,0,0,.35);transition:transform .12s}
+.how{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.how span{font-size:14px;padding:7px 14px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.lang-q{font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.lang-row{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.lang-btn{min-width:240px;padding:20px 28px;border-radius:16px;font-size:24px;font-weight:500;background:var(--maroon);
+  box-shadow:inset 0 0 0 2px rgba(227,196,156,.35),0 10px 30px rgba(0,0,0,.35);transition:transform .12s}
 .lang-btn:active{transform:scale(.97)}
 .lang-btn small{display:block;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--wood-lt);margin-top:4px;font-weight:400}
-.privacy{font-size:14px;color:var(--muted);text-align:center;line-height:1.5;padding:0 24px}
+.privacy{font-size:14px;color:var(--muted);text-align:center;line-height:1.5;padding:0 24px;margin:0}
 .privacy b{color:var(--paper);font-weight:500}
 
-/* Mirror stage */
-#mirror{background:var(--ink)}
+/* Frame entry */
+.guide{border:1px solid var(--line);border-radius:18px;background:var(--panel);padding:16px;display:flex;flex-direction:column;gap:10px}
+.guide svg{width:100%;height:auto;display:block}
+.guide .cap{font-size:15px;color:var(--muted);line-height:1.45}
+.guide .cap b{color:var(--paper);font-weight:500}
+.fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.fld{display:flex;flex-direction:column;gap:6px;min-width:0}
+.fld label{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--wood-lt)}
+.fld label small{letter-spacing:0;text-transform:none;color:var(--muted)}
+.fld input{width:100%;font:500 30px/1 var(--f-body);font-variant-numeric:tabular-nums;color:var(--paper);background:var(--field);
+  border:2px solid var(--line);border-radius:12px;padding:14px 12px;text-align:center;-webkit-user-select:text;user-select:text}
+.fld input:focus{border-color:var(--wood);outline:none}
+.fld input.bad{border-color:var(--warn)}
+.fld .hint2{font-size:12.5px;color:var(--muted)}
+.sec-h{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--wood-lt);margin:0}
+.shapes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.shape{border:2px solid var(--line);border-radius:14px;padding:8px 6px 10px;background:rgba(255,255,255,.03);text-align:center}
+.shape.on{border-color:var(--wood);background:rgba(180,128,79,.14)}
+.shape canvas{width:100%;height:46px;display:block}
+.shape span{font-size:14px;display:block;margin-top:2px}
+.actions{display:flex;gap:12px}
+.btn{flex:1;padding:16px 18px;border-radius:14px;font-size:18px;font-weight:500;border:2px solid var(--line);text-align:center}
+.btn.primary{background:var(--maroon);border-color:rgba(227,196,156,.45)}
+.btn.wood{background:var(--wood-grain);color:#241205;border-color:transparent}
+.btn:active:not(:disabled){transform:scale(.98)}
+.err-line{color:var(--warn);font-size:14px;min-height:1em;margin:0}
+
+/* Mirror */
 .stage{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;background:#000}
 .stage canvas{position:absolute;inset:0;width:100%;height:100%}
-.topbar{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;
-  padding:16px 18px;background:linear-gradient(rgba(28,10,14,.75),transparent);pointer-events:none}
-.topbar .brand-name{font-size:18px}.topbar .brand-mark{width:38px;height:38px}.topbar .brand-mark svg{width:24px}
-.pill{background:rgba(28,10,14,.72);border:1px solid var(--line);border-radius:999px;padding:8px 16px;font-size:15px;backdrop-filter:blur(6px)}
-.hint{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);text-align:center;max-width:90%;
-  background:rgba(28,10,14,.8);border:1px solid var(--line);border-radius:14px;padding:12px 22px;font-size:20px;backdrop-filter:blur(6px)}
+.topbar{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;
+  background:linear-gradient(rgba(28,10,14,.75),transparent);pointer-events:none}
+.topbar .brand-name{font-size:17px}.topbar .brand-mark{width:36px;height:36px}.topbar .brand-mark svg{width:22px}
+.pill{background:rgba(28,10,14,.72);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:14px;backdrop-filter:blur(6px);white-space:nowrap}
+.hint{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);text-align:center;max-width:92%;
+  background:rgba(28,10,14,.82);border:1px solid var(--line);border-radius:14px;padding:12px 20px;font-size:20px;backdrop-filter:blur(6px)}
 .hint small{display:block;font-size:14px;color:var(--muted);margin-top:4px}
+.count{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--f-display);font-size:min(40vw,220px);color:var(--paper);
+  text-shadow:0 6px 40px rgba(0,0,0,.6);pointer-events:none}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .35s}
+.flash.on{opacity:.85;transition:none}
 .progress{position:absolute;left:0;right:0;top:0;height:5px;background:rgba(255,255,255,.08)}
 .progress i{display:block;height:100%;width:0;background:var(--wood-grain);transition:width .15s}
-.tryname{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);white-space:nowrap}
-
-/* Panel */
 .panel{flex:0 0 auto;background:var(--panel);border-top:6px solid transparent;border-image:var(--wood-grain) 1;
-  padding:16px max(18px,env(safe-area-inset-right,0px)) 16px max(18px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px}
-.ph{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
-.ph h2{font-family:var(--f-display);font-weight:500;font-size:24px;margin:0}
-.ph .face{font-size:15px;color:var(--muted)}
-.ph .face b{color:var(--wood-lt);font-weight:500;font-size:18px}
-.picks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.pick{position:relative;text-align:left;border-radius:14px;padding:12px 12px 12px;background:rgba(255,255,255,.04);
-  border:2px solid var(--line);display:flex;flex-direction:column;gap:6px;min-width:0;transition:border-color .15s,background .15s}
-.pick.on{border-color:var(--wood);background:rgba(180,128,79,.12)}
-.rank{position:absolute;top:-2px;left:-2px;width:34px;height:34px;border-radius:12px 0 12px 0;background:var(--maroon);
-  display:grid;place-items:center;font-family:var(--f-display);font-size:18px}
-.pick:first-child .rank{background:var(--wood-grain);color:#2a1406}
-.pick canvas{width:100%;height:64px;display:block}
-.score{display:flex;align-items:baseline;gap:4px;font-variant-numeric:tabular-nums}
-.score b{font-family:var(--f-display);font-size:32px;font-weight:500;line-height:1}
-.score span{color:var(--muted);font-size:14px}
-.pname{font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.psize{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
-.reason{font-size:13.5px;line-height:1.35;color:var(--paper);opacity:.9}
-.fit{align-self:flex-start;font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid currentColor}
-.fit.good{color:var(--good)}.fit.warn{color:var(--warn)}
-.more-h{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
-.strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
-.strip::-webkit-scrollbar{display:none}
-.thumb{flex:0 0 112px;border-radius:12px;border:2px solid var(--line);padding:6px 6px 8px;background:rgba(255,255,255,.03);text-align:center}
-.thumb.on{border-color:var(--wood)}
-.thumb canvas{width:100%;height:40px;display:block}
-.thumb span{font-size:12px;color:var(--muted);display:block;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.actions{display:flex;gap:12px}
-.btn{flex:1;padding:16px 18px;border-radius:14px;font-size:18px;font-weight:500;border:2px solid var(--line)}
-.btn.primary{background:var(--maroon);border-color:rgba(227,196,156,.45)}
-.btn:active{transform:scale(.98)}
+  padding:16px max(18px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px}
+.panel h2{font-family:var(--f-display);font-weight:500;font-size:24px;margin:0}
+.panel p{margin:0;color:var(--muted);font-size:16px;line-height:1.5}
 
-/* Scan panel */
-.scan-panel{gap:10px}
-.scan-panel p{margin:0;color:var(--muted);font-size:16px;line-height:1.5}
-.scan-panel h2{font-family:var(--f-display);font-weight:500;font-size:26px;margin:0}
-.steps{display:flex;gap:10px;flex-wrap:wrap}
-.steps span{font-size:14px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+/* Scores */
+.scores{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center}
+.overall{width:132px;height:132px;border-radius:50%;display:grid;place-items:center;text-align:center;position:relative}
+.overall canvas{position:absolute;inset:0;width:100%;height:100%}
+.overall b{font-family:var(--f-display);font-size:44px;font-weight:500;line-height:1;font-variant-numeric:tabular-nums;display:block}
+.overall span{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.subs{display:flex;flex-direction:column;gap:12px;min-width:0}
+.sub .row1{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.sub .row1 b{font-weight:500;font-size:16px}
+.sub .row1 em{font-style:normal;font-family:var(--f-display);font-size:24px;font-variant-numeric:tabular-nums}
+.sub .row1 em small{font-family:var(--f-body);font-size:13px;color:var(--muted)}
+.meter{height:8px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;margin:6px 0 6px}
+.meter i{display:block;height:100%;background:var(--wood-grain);border-radius:99px}
+.sub p{font-size:14px;line-height:1.4;color:var(--paper);opacity:.88}
+.sub .det{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.facts{display:flex;gap:8px;flex-wrap:wrap}
+.facts span{font-size:13.5px;padding:5px 12px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-variant-numeric:tabular-nums}
+.facts b{color:var(--wood-lt);font-weight:500}
 
-/* Summary */
-#summary{background:var(--ink);overflow-y:auto}
-.sum{max-width:760px;width:100%;margin:0 auto;padding:28px max(22px,env(safe-area-inset-right,0px)) 28px max(22px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:20px}
-.sum-h{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-.sum h1{font-family:var(--f-display);font-weight:500;font-size:34px;margin:0}
-.badge{font-size:12px;letter-spacing:.16em;text-transform:uppercase;padding:6px 12px;border-radius:999px;background:var(--wood-grain);color:#2a1406;font-weight:700}
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.cell{background:var(--panel);padding:16px 18px;min-width:0}
-.cell .k{font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.cell .v{font-family:var(--f-display);font-size:30px;margin-top:4px;font-variant-numeric:tabular-nums}
-.cell .v small{font-family:var(--f-body);font-size:15px;color:var(--muted)}
-.cell .n{font-size:13px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
-.sec-h{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--wood-lt);margin:0 0 8px}
+/* Send / list */
 .list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.row{display:flex;align-items:center;gap:14px;padding:12px 16px;background:var(--panel);border-top:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:14px;padding:12px 14px;background:var(--panel);border-top:1px solid var(--line)}
 .row:first-child{border-top:0}
-.row canvas{width:96px;height:36px;flex:0 0 auto}
-.row .t{flex:1;min-width:0}
-.row .t b{display:block;font-weight:500}
-.row .t span{font-size:13.5px;color:var(--muted)}
-.row .s{font-family:var(--f-display);font-size:24px;font-variant-numeric:tabular-nums}
-.row .s small{font-family:var(--f-body);font-size:13px;color:var(--muted)}
-.tried{display:flex;flex-wrap:wrap;gap:8px}
-.tried span{font-size:14px;padding:6px 12px;border-radius:999px;border:1px solid var(--line)}
+.row img{width:84px;height:84px;border-radius:10px;object-fit:cover;flex:0 0 auto}
+.row .tx{flex:1;min-width:0}
+.row .tx b{display:block;font-weight:500}
+.row .tx span{font-size:13.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.row .sc{font-family:var(--f-display);font-size:26px;font-variant-numeric:tabular-nums;text-align:right}
+.row .sc small{display:block;font-family:var(--f-body);font-size:12px;color:var(--muted)}
+.rank{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;background:var(--maroon);font-family:var(--f-display);font-size:15px;margin-right:6px}
+.row:first-child .rank{background:var(--wood-grain);color:#241205}
+.phone{display:flex;gap:10px}
+.phone .cc{flex:0 0 96px}
+.phone input{flex:1;min-width:0}
+.consent{display:flex;gap:12px;align-items:flex-start;font-size:15px;line-height:1.45;color:var(--paper);padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+.consent input{width:26px;height:26px;flex:0 0 auto;accent-color:#B4804F;margin:0}
+.cardprev{width:100%;max-width:420px;align-self:center;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.45)}
+.staffbox{border:2px dashed var(--wood);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.staffbox ol{margin:0;padding-left:22px;color:var(--muted);line-height:1.6;font-size:15px}
+.badge{font-size:12px;letter-spacing:.16em;text-transform:uppercase;padding:6px 12px;border-radius:999px;background:var(--wood-grain);color:#241205;font-weight:700;align-self:flex-start}
+.big-num{font-family:var(--f-display);font-size:34px;font-variant-numeric:tabular-nums}
 .note{font-size:14px;line-height:1.55;color:var(--muted);border-left:3px solid var(--wood);padding:4px 0 4px 14px;margin:0}
-.meta{font-size:12.5px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
-.ok{color:var(--good)}.no{color:var(--warn)}
-
-/* Error */
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--paper);color:var(--ink);padding:12px 20px;border-radius:12px;font-weight:500;z-index:30;box-shadow:0 10px 30px rgba(0,0,0,.4)}
 .err{position:fixed;inset:auto 0 0 0;padding:20px 24px calc(20px + env(safe-area-inset-bottom,0px));background:var(--maroon);font-size:18px;text-align:center;z-index:20}
 .err button{margin-top:12px;padding:10px 20px;border-radius:10px;border:2px solid var(--wood-lt)}
 
+/* Guide animation */
+@keyframes hlA{0%,8%{opacity:0}12%,30%{opacity:1}34%,100%{opacity:0}}
+@keyframes hlB{0%,36%{opacity:0}40%,58%{opacity:1}62%,100%{opacity:0}}
+@keyframes hlC{0%,64%{opacity:0}68%,88%{opacity:1}92%,100%{opacity:0}}
+@keyframes armTurn{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(2deg)}}
+.g-a{animation:hlA 7s infinite}.g-b{animation:hlB 7s infinite}.g-c{animation:hlC 7s infinite}
+.g-arm{transform-origin:120px 70px;animation:armTurn 7s ease-in-out infinite}
+
 @media (max-width:620px){
-  /* phone: keep the mirror large, picks scroll sideways */
-  .stage{min-height:50vh}
-  .panel{gap:10px;padding-top:12px;padding-bottom:max(12px,env(safe-area-inset-bottom,0px))}
-  .ph h2{font-size:20px}
-  .ph .face b{font-size:16px}
-  .picks{display:flex;overflow-x:auto;gap:10px;scroll-snap-type:x mandatory;scrollbar-width:none}
-  .picks::-webkit-scrollbar{display:none}
-  .pick{flex:0 0 74%;scroll-snap-align:start;padding:10px;gap:4px}
-  .pick canvas{height:44px}
-  .score b{font-size:26px}
-  .reason{font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .thumb{flex-basis:88px}
-  .thumb canvas{height:32px}
+  .stage{min-height:46vh}
+  .panel{gap:10px;padding-top:12px}
+  .panel h2{font-size:20px}
+  .overall{width:104px;height:104px}.overall b{font-size:34px}
+  .scores{gap:12px}
+  .sub p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13px}
   .btn{padding:12px 10px;font-size:16px}
-  .topbar{padding:10px 12px}
-  .topbar .brand-name{font-size:15px}
+  .fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fld input{font-size:26px;padding:12px 8px}
+  .topbar{padding:10px 12px}.topbar .brand-name{font-size:15px}
   #pill{display:none!important}
-  .tryname{font-size:13px;padding:6px 12px;bottom:10px}
   .hint{font-size:17px;padding:10px 16px}
   .lang-btn{min-width:200px}
-  .cell{padding:12px 14px}
-  .cell .v{font-size:24px}
-  .row{gap:10px;padding:10px 12px}
-  .row canvas{width:64px;height:26px}
+  .row img{width:64px;height:64px}
+  .overall span{font-size:9.5px;letter-spacing:.04em}
+  .sub .det{display:none}
+  .facts span{font-size:12.5px;padding:4px 10px}
 }
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
 
-<!-- Welcome / language -->
+<!-- 1. Welcome / language -->
 <section id="welcome" class="screen">
-  <div class="top">
-    <div class="brand">
-      <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="#2a1406" stroke-width="2.4"><circle cx="9" cy="17" r="6"/><circle cx="23" cy="17" r="6"/><path d="M15 16c.7-1.2 1.3-1.2 2 0"/></svg></div>
-      <div><div class="brand-name" data-brand-name>Demo Optical</div><div class="brand-sub">Frame Try-On Mirror</div></div>
-    </div>
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="#2a1406" stroke-width="2.4"><circle cx="9" cy="17" r="6"/><circle cx="23" cy="17" r="6"/><path d="M15 16c.7-1.2 1.3-1.2 2 0"/></svg></div>
+    <div><div class="brand-name" data-brand-name>Demo Optical</div><div class="brand-sub">Frame Try-On Mirror</div></div>
   </div>
   <div class="hero">
     <canvas id="attract" aria-hidden="true"></canvas>
-    <h1>Find the frame that suits your face<span class="bm">Cari bingkai yang sesuai dengan muka anda</span></h1>
+    <h1>Put on a frame. Get your score.<span class="bm">Pakai bingkai. Dapatkan skor anda.</span></h1>
+    <div class="how"><span>Design match /10</span><span>Size fit /10</span><span>Photo to WhatsApp</span></div>
     <div class="lang-q">Choose language · Pilih bahasa</div>
     <div class="lang-row">
-      <button class="lang-btn" id="btn-en" data-lang="en">English<small>Start</small></button>
-      <button class="lang-btn" id="btn-ms" data-lang="ms">Bahasa Malaysia<small>Mula</small></button>
+      <button class="lang-btn" id="btn-en">English<small>Start</small></button>
+      <button class="lang-btn" id="btn-ms">Bahasa Malaysia<small>Mula</small></button>
     </div>
   </div>
-  <p class="privacy"><b>Your photo is never saved or sent anywhere.</b><br>Gambar anda tidak disimpan atau dihantar ke mana-mana.</p>
+  <p class="privacy"><b>Your photo stays on this device unless you ask us to send it.</b><br>Gambar anda kekal dalam peranti ini melainkan anda minta kami hantar.</p>
 </section>
 
-<!-- Mirror: scan + try-on share the live camera stage -->
+<!-- 2. Frame details -->
+<section id="frame" class="screen scroll" hidden>
+  <div class="wrap">
+    <div class="bar">
+      <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="#2a1406" stroke-width="2.4"><circle cx="9" cy="17" r="6"/><circle cx="23" cy="17" r="6"/><path d="M15 16c.7-1.2 1.3-1.2 2 0"/></svg></div><div class="brand-name" data-brand-name>Demo Optical</div></div>
+      <div class="steps-ind" id="tryCount"></div>
+    </div>
+    <h1 class="t" data-t="fTitle"></h1>
+    <p class="lead" data-t="fLead"></p>
+
+    <div class="guide">
+      <svg viewBox="0 0 640 230" role="img" aria-label="Where to find the frame size">
+        <defs>
+          <linearGradient id="armg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a1e17"/><stop offset="1" stop-color="#1e0f0b"/></linearGradient>
+          <linearGradient id="lensg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="rgba(255,255,255,.12)"/><stop offset=".5" stop-color="rgba(255,255,255,.02)"/></linearGradient>
+        </defs>
+        <!-- glasses front, small, with one arm opened toward viewer -->
+        <g transform="translate(20,18)">
+          <rect x="0" y="10" width="78" height="60" rx="18" fill="url(#lensg)" stroke="#B4804F" stroke-width="6"/>
+          <rect x="102" y="10" width="78" height="60" rx="18" fill="url(#lensg)" stroke="#B4804F" stroke-width="6"/>
+          <path d="M78 30 q12 -10 24 0" fill="none" stroke="#B4804F" stroke-width="6"/>
+          <path d="M180 26 l14 -2" stroke="#B4804F" stroke-width="6" stroke-linecap="round"/>
+          <path d="M194 24 L236 74" stroke="#E3C49C" stroke-width="3" stroke-dasharray="5 6"/>
+          <circle cx="236" cy="78" r="5" fill="#E3C49C"/>
+        </g>
+        <!-- arm, inner side, zoomed -->
+        <g class="g-arm">
+          <path d="M40 120 H560 q36 0 46 30 q-10 30 -46 30 H40 q-14 0 -14 -30 q0 -30 14 -30z" fill="url(#armg)" stroke="#B4804F" stroke-width="4"/>
+          <text x="90" y="160" fill="#F7ECDF" font-family="Roboto,Arial,sans-serif" font-size="30" letter-spacing="2">DM-2041  C3</text>
+          <text x="320" y="160" fill="#F7ECDF" font-family="Roboto,Arial,sans-serif" font-size="30" font-weight="700" letter-spacing="1">52</text>
+          <rect x="361" y="137" width="18" height="18" fill="none" stroke="#F7ECDF" stroke-width="2.4"/>
+          <text x="386" y="160" fill="#F7ECDF" font-family="Roboto,Arial,sans-serif" font-size="30" font-weight="700">18</text>
+          <text x="428" y="160" fill="#F7ECDF" font-family="Roboto,Arial,sans-serif" font-size="30" font-weight="700">–145</text>
+          <rect class="g-a" x="312" y="128" width="50" height="44" rx="8" fill="rgba(180,128,79,.30)" stroke="#E3C49C" stroke-width="3"/>
+          <rect class="g-b" x="380" y="128" width="46" height="44" rx="8" fill="rgba(180,128,79,.30)" stroke="#E3C49C" stroke-width="3"/>
+          <rect class="g-c" x="440" y="128" width="72" height="44" rx="8" fill="rgba(180,128,79,.30)" stroke="#E3C49C" stroke-width="3"/>
+        </g>
+        <text class="g-a" x="337" y="212" text-anchor="middle" fill="#E3C49C" font-family="Roboto,Arial,sans-serif" font-size="20" data-svg="lblA">Lens width</text>
+        <text class="g-b" x="403" y="212" text-anchor="middle" fill="#E3C49C" font-family="Roboto,Arial,sans-serif" font-size="20" data-svg="lblB">Bridge</text>
+        <text class="g-c" x="476" y="212" text-anchor="middle" fill="#E3C49C" font-family="Roboto,Arial,sans-serif" font-size="20" data-svg="lblC">Arm length</text>
+        <text x="270" y="58" fill="#F7ECDF" font-family="Roboto,Arial,sans-serif" font-size="20" data-svg="lookInside">Look inside the arm</text>
+      </svg>
+      <div class="cap" data-t="gCap"></div>
+    </div>
+
+    <div class="fields">
+      <div class="fld"><label for="inA"><span data-t="lA"></span></label><input id="inA" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="52" autocomplete="off"><span class="hint2" data-t="hA"></span></div>
+      <div class="fld"><label for="inB"><span data-t="lB"></span></label><input id="inB" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="18" autocomplete="off"><span class="hint2" data-t="hB"></span></div>
+      <div class="fld"><label for="inC"><span data-t="lC"></span> <small data-t="opt"></small></label><input id="inC" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="145" autocomplete="off"><span class="hint2" data-t="hC"></span></div>
+    </div>
+
+    <h3 class="sec-h" data-t="pickShape"></h3>
+    <div class="shapes" id="shapes"></div>
+    <p class="err-line" id="fErr"></p>
+    <div class="actions">
+      <button class="btn" id="btn-fback" data-t="back"></button>
+      <button class="btn primary" id="btn-fnext" data-t="next" disabled></button>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Mirror: scan, photo, scores -->
 <section id="mirror" class="screen" hidden>
-  <div class="stage" id="stage">
+  <div class="stage">
     <canvas id="cv"></canvas>
     <div class="progress" id="progress"><i></i></div>
     <div class="topbar">
       <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="#2a1406" stroke-width="2.4"><circle cx="9" cy="17" r="6"/><circle cx="23" cy="17" r="6"/><path d="M15 16c.7-1.2 1.3-1.2 2 0"/></svg></div><div class="brand-name" data-brand-name>Demo Optical</div></div>
-      <div class="pill" id="pill" hidden></div>
+      <div class="pill" id="pill"></div>
     </div>
+    <div class="count" id="count" hidden></div>
+    <div class="flash" id="flash"></div>
     <div class="hint" id="hint" hidden></div>
-    <div class="pill tryname" id="tryname" hidden></div>
   </div>
 
-  <div class="panel scan-panel" id="scanPanel">
+  <div class="panel" id="scanPanel">
     <h2 data-t="scanTitle"></h2>
     <p data-t="scanBody"></p>
-    <div class="steps"><span data-t="step1"></span><span data-t="step2"></span><span data-t="step3"></span></div>
-    <div class="actions"><button class="btn" id="btn-back" data-t="back"></button></div>
+    <div class="actions"><button class="btn" id="btn-sback" data-t="back"></button></div>
   </div>
 
-  <div class="panel" id="tryPanel" hidden>
-    <div class="ph">
-      <h2 data-t="top3"></h2>
-      <div class="face"><span data-t="faceShape"></span>: <b id="faceShape"></b></div>
+  <div class="panel" id="resPanel" hidden>
+    <div class="scores">
+      <div class="overall"><canvas id="ring"></canvas><div><b id="ovNum"></b><span data-t="overall"></span></div></div>
+      <div class="subs">
+        <div class="sub"><div class="row1"><b data-t="design"></b><em><span id="dNum"></span> <small>/ 10</small></em></div><div class="meter"><i id="dBar"></i></div><p id="dWhy"></p></div>
+        <div class="sub"><div class="row1"><b data-t="size"></b><em><span id="sNum"></span> <small>/ 10</small></em></div><div class="meter"><i id="sBar"></i></div><p id="sWhy"></p><div class="det" id="sDet"></div></div>
+      </div>
     </div>
-    <div class="picks" id="picks"></div>
-    <div class="more-h" data-t="more"></div>
-    <div class="strip" id="strip"></div>
+    <div class="facts" id="facts"></div>
     <div class="actions">
-      <button class="btn" id="btn-rescan" data-t="rescan"></button>
-      <button class="btn primary" id="btn-done" data-t="done"></button>
+      <button class="btn" id="btn-retake" data-t="retake"></button>
+      <button class="btn" id="btn-another" data-t="another"></button>
+      <button class="btn primary" id="btn-send" data-t="sendWA"></button>
     </div>
   </div>
 </section>
 
-<!-- Staff summary -->
-<section id="summary" class="screen" hidden>
-  <div class="sum">
-    <div class="sum-h">
-      <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="#2a1406" stroke-width="2.4"><circle cx="9" cy="17" r="6"/><circle cx="23" cy="17" r="6"/><path d="M15 16c.7-1.2 1.3-1.2 2 0"/></svg></div><div class="brand-name" data-brand-name>Demo Optical</div></div>
-      <span class="badge" data-t="forStaff"></span>
+<!-- 4. Send: results + phone number -->
+<section id="send" class="screen scroll" hidden>
+  <div class="wrap">
+    <div class="bar"><div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="#2a1406" stroke-width="2.4"><circle cx="9" cy="17" r="6"/><circle cx="23" cy="17" r="6"/><path d="M15 16c.7-1.2 1.3-1.2 2 0"/></svg></div><div class="brand-name" data-brand-name>Demo Optical</div></div></div>
+    <h1 class="t" data-t="sendTitle"></h1>
+    <div class="list" id="tryList"></div>
+    <img class="cardprev" id="cardPrev" alt="">
+    <h3 class="sec-h" data-t="yourWA"></h3>
+    <div class="phone fld">
+      <input class="cc" id="inCC" inputmode="tel" value="+60" maxlength="5" autocomplete="off" aria-label="Country code">
+      <input id="inPhone" inputmode="tel" placeholder="12 345 6789" maxlength="14" autocomplete="off" aria-label="WhatsApp number">
     </div>
-    <h1 data-t="sumTitle"></h1>
-    <div class="grid" id="sumGrid"></div>
-    <div><h3 class="sec-h" data-t="top3"></h3><div class="list" id="sumPicks"></div></div>
-    <div><h3 class="sec-h" data-t="tried"></h3><div class="tried" id="sumTried"></div></div>
-    <p class="note" data-t="estimate"></p>
-    <div class="meta" id="sumMeta"></div>
+    <label class="consent"><input type="checkbox" id="inConsent"><span id="consentTx"></span></label>
+    <p class="err-line" id="sErr"></p>
     <div class="actions">
-      <button class="btn" id="btn-sum-back" data-t="backTry"></button>
-      <button class="btn primary" id="btn-new" data-t="newCustomer"></button>
+      <button class="btn" id="btn-sendback" data-t="back"></button>
+      <button class="btn primary" id="btn-ready" data-t="ready" disabled></button>
     </div>
+    <button class="btn" id="btn-finish" data-t="finishNoSend"></button>
+  </div>
+</section>
+
+<!-- 5. Staff send -->
+<section id="staff" class="screen scroll" hidden>
+  <div class="wrap">
+    <div class="bar"><div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="#2a1406" stroke-width="2.4"><circle cx="9" cy="17" r="6"/><circle cx="23" cy="17" r="6"/><path d="M15 16c.7-1.2 1.3-1.2 2 0"/></svg></div><div class="brand-name" data-brand-name>Demo Optical</div></div></div>
+    <h1 class="t" data-t="askStaff"></h1>
+    <p class="lead" data-t="askStaffBody"></p>
+    <div class="big-num" id="numShow"></div>
+    <div class="staffbox">
+      <span class="badge" data-t="forStaff"></span>
+      <ol><li data-t="st1"></li><li data-t="st2"></li><li data-t="st3"></li><li data-t="st4"></li></ol>
+      <div class="actions">
+        <button class="btn wood" id="btn-save" data-t="savePhoto"></button>
+        <button class="btn primary" id="btn-wa" data-t="openWA"></button>
+      </div>
+      <button class="btn" id="btn-share" data-t="shareAll"></button>
+    </div>
+    <p class="note" data-t="estimate"></p>
+    <button class="btn" id="btn-done" data-t="doneNew"></button>
   </div>
 </section>
 
 <div class="err" id="err" hidden><div id="errMsg"></div><button id="errBtn" data-t="restart"></button></div>
+<div class="toast" id="toast" hidden></div>
 
 <script type="module">
 /* ============================================================
    SETTINGS — edit these to customise the app
    ============================================================ */
-const BRAND = { name: "Demo Optical" };           // shop name shown on every screen
-const SCAN_SAMPLES = 40;                          // good frames averaged during the scan (~2 s)
-const IRIS_MM = 11.7;                             // average human iris diameter, used as the ruler
-const IDLE_RESET_S = { scan: 60, tryon: 45, summary: 120 }; // auto-return to start screen
-// Face-shape thresholds (tune after trying on a few staff — see raw ratios on the staff screen)
+const BRAND = { name: "Demo Optical" };                 // shop name on screens, photo card and WhatsApp text
+const DEFAULT_CC = "+60";                               // default country code for WhatsApp numbers
+const SCAN_SAMPLES = 36;                                // frames averaged per scan (~2 s)
+const IRIS_MM = 11.7;                                   // average iris diameter, used as the ruler
+const FRAME_EXTRA_MM = 10;                              // total frame width ≈ 2×lens + bridge + this (end pieces)
+const IDLE_RESET_S = { frame: 120, mirror: 75, send: 180, staff: 600 };
 const SHAPE_RULES = { longMin: 1.40, heartGap: 0.12, heartJawMax: 0.80, squareJawMin: 0.86, squareLenMax: 1.32, roundLenMax: 1.26 };
-// Score weights (total is out of 10.0)
-const W_SHAPE = 0.6, W_FIT = 0.4;
 
 const MP_VER = "0.10.14";
 const MP_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}`;
 const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
-const params = new URLSearchParams(location.search);
-const MOCK = params.get("mock"); // ?mock=oval|round|square|heart|long  -> test without camera
+const MOCK = new URLSearchParams(location.search).get("mock");   // ?mock=oval|round|square|heart|long  -> demo face, no camera
 
-/* ============================================================
-   FRAME CATALOGUE (generic demo). Add your real models here later.
-   A = lens width, B = lens height, DBL = bridge, W = total front width (mm)
-   ============================================================ */
-const FRAMES = [
-  { id:"DM-S50",  shape:"square",    A:50, B:43, DBL:19, W:136, mat:"maroon",   rim:"acetate" },
-  { id:"DM-R48",  shape:"round",     A:48, B:45, DBL:21, W:130, mat:"gold",     rim:"metal" },
-  { id:"DM-RC54", shape:"rectangle", A:54, B:35, DBL:17, W:142, mat:"wood",     rim:"acetate" },
-  { id:"DM-AV56", shape:"aviator",   A:56, B:49, DBL:15, W:140, mat:"gold",     rim:"metal" },
-  { id:"DM-CE52", shape:"cateye",    A:52, B:42, DBL:18, W:138, mat:"maroon",   rim:"acetate" },
-  { id:"DM-BR51", shape:"browline",  A:51, B:41, DBL:20, W:140, mat:"tortoise", rim:"browline" },
-  { id:"DM-O50",  shape:"oval",      A:50, B:38, DBL:19, W:134, mat:"black",    rim:"acetate" },
-  { id:"DM-HX51", shape:"hexagon",   A:51, B:45, DBL:20, W:138, mat:"gold",     rim:"metal" },
-  { id:"DM-PT49", shape:"panto",     A:49, B:44, DBL:21, W:134, mat:"wood",     rim:"acetate" },
-  { id:"DM-OS55", shape:"oversized", A:55, B:50, DBL:17, W:146, mat:"crystal",  rim:"acetate" },
-  { id:"DM-R51",  shape:"round",     A:51, B:47, DBL:20, W:138, mat:"tortoise", rim:"acetate" },
-  { id:"DM-S54",  shape:"square",    A:54, B:46, DBL:18, W:145, mat:"black",    rim:"bold" },
-  { id:"DM-RC50", shape:"rectangle", A:50, B:31, DBL:17, W:132, mat:"gunmetal", rim:"metal" },
-];
-
+/* Frame shapes the customer can pick */
+const SHAPES = ["square","rectangle","round","oval","cateye","aviator","browline","geometric","panto"];
 /* How well each frame shape suits each face shape (0–10), from standard optician styling guidance */
 const SHAPE_SCORE = {
-  round:  { square:9.5, rectangle:9.3, hexagon:8.8, browline:8.6, cateye:8.0, aviator:7.2, oversized:7.0, panto:5.5, oval:5.0, round:3.8 },
-  square: { round:9.5, oval:9.3, panto:8.8, aviator:8.6, cateye:8.2, browline:7.0, oversized:6.8, hexagon:6.0, rectangle:4.2, square:3.8 },
-  oval:   { square:9.2, rectangle:9.0, aviator:9.0, browline:8.8, cateye:8.6, hexagon:8.6, panto:8.4, round:8.2, oversized:8.0, oval:7.8 },
-  heart:  { oval:9.3, round:9.0, panto:8.8, aviator:8.4, rectangle:7.6, hexagon:7.4, square:7.0, oversized:6.2, cateye:5.4, browline:4.8 },
-  long:   { oversized:9.4, square:8.8, aviator:8.8, round:8.4, panto:8.2, hexagon:8.0, browline:7.8, cateye:7.2, oval:7.0, rectangle:5.0 },
+  round:  { square:9.5, rectangle:9.3, geometric:8.8, browline:8.6, cateye:8.0, aviator:7.2, panto:5.5, oval:5.0, round:3.8 },
+  square: { round:9.5, oval:9.3, panto:8.8, aviator:8.6, cateye:8.2, browline:7.0, geometric:6.0, rectangle:4.2, square:3.8 },
+  oval:   { square:9.2, rectangle:9.0, aviator:9.0, browline:8.8, cateye:8.6, geometric:8.6, panto:8.4, round:8.2, oval:7.8 },
+  heart:  { oval:9.3, round:9.0, panto:8.8, aviator:8.4, rectangle:7.6, geometric:7.4, square:7.0, cateye:5.4, browline:4.8 },
+  long:   { square:8.8, aviator:8.8, round:8.4, panto:8.2, geometric:8.0, browline:7.8, cateye:7.2, oval:7.0, rectangle:5.0 },
 };
 
 /* ============================================================
@@ -315,58 +388,90 @@ const SHAPE_SCORE = {
    ============================================================ */
 const T = {
  en:{
-  scanTitle:"Let's read your face", scanBody:"Stand about an arm's length from the screen and look straight ahead. It takes about 3 seconds.",
-  step1:"1 · Look straight", step2:"2 · Hold still", step3:"3 · See your top 3", back:"Back",
+  back:"Back", next:"Next · Scan my face", restart:"Start again", opt:"(optional)",
+  fTitle:"Put on the frame, then enter its size", fLead:"The size is printed on the inside of the frame's arm.",
+  gCap:"<b>Example: 52 □ 18 – 145</b> · 52 = lens width · 18 = bridge · 145 = arm length (all in mm). Sometimes it is written 52-18-145.",
+  lA:"Lens width", lB:"Bridge", lC:"Arm length", hA:"Usually 45–58", hB:"Usually 14–22", hC:"Usually 135–150",
+  pickShape:"Which shape is this frame?", tryN:n=>`Frame ${n}`,
+  errA:"Lens width should be between 38 and 65.", errB:"Bridge should be between 12 and 26.", errC:"Arm length should be between 120 and 160.", errShape:"Tap the shape that looks most like your frame.",
+  svg:{ lblA:"Lens width", lblB:"Bridge", lblC:"Arm length", lookInside:"Look inside the arm" },
+  scanTitle:"Keep the frame on and look straight", scanBody:"Stand about an arm's length away. We'll read your face, then take a photo.",
   loadingAI:"Preparing the AI…", looking:"Looking for your face…", closer:"Move a little closer", farther:"Move back a little",
-  straight:"Keep your head straight", hold:"Hold still…", glasses:"Tip: take off your glasses for a more accurate reading",
-  centre:"Move to the centre of the screen", done1:"Done!",
-  top3:"Your top 3 picks", faceShape:"Face shape", more:"More frames to try", rescan:"Scan again", done:"Done · Show staff",
-  fitGood:"Good fit", fitWide:"A little wide", fitNarrow:"A little narrow",
-  forStaff:"For staff", sumTitle:"Customer summary", tried:"Frames tried", backTry:"Back to try-on", newCustomer:"New customer",
-  kShape:"Face shape", kWidth:"Face width", kPD:"Pupil distance (PD)", kFrameW:"Suggested frame width", kLens:"Suggested size", kTemple:"Temple width", kScore:"Score", max:"max", scoreHow:(a,b)=>`${a}% face-shape match · ${b}% size fit`,
-  estimate:"Measurements are camera estimates (±3–4 mm). Confirm PD with a pupillometer or PD ruler before ordering lenses.",
-  noneTried:"Only the top pick was shown", offlineOk:"Offline ready", offlineNo:"Not yet saved for offline", restart:"Start again",
-  errCam:"The camera is blocked. Staff: allow camera access for this app in Chrome settings, then start again.",
-  errAI:"The face AI could not load. Connect the tablet to the internet once, then start again.",
-  fitNum:(w,f)=>`Frame ${w} mm · your face ${f} mm`,
+  straight:"Keep your head straight", hold:"Hold still…", centre:"Move to the centre of the screen", smile:"Smile! Taking your photo",
+  overall:"Overall", design:"Design match", size:"Size fit", retake:"Retake photo", another:"Try another frame", sendWA:"Send to my WhatsApp",
+  facts:(r,f)=>[`Face shape <b>${r.shapeName}</b>`, `PD ≈ <b>${Math.round(r.pdMm)} mm</b>`, `Frame <b>${f.A}□${f.B}${f.C?`–${f.C}`:""}</b>`],
+  wDet:(fw,face)=>`Frame ≈ ${fw} mm wide · your face ≈ ${face} mm`, pdDet:(c,pd)=>`Lens centres ${c} mm · your PD ≈ ${pd} mm`,
+  wGood:"The width suits your face.", wWide:"A little wide for your face.", wNarrow:"A little narrow for your face.",
+  pGood:"The lens centres line up with your eyes.", pWide:"Lens centres sit wider than your eyes.", pNarrow:"Lens centres sit narrower than your eyes.",
+  sendTitle:"Your results", yourWA:"Your WhatsApp number",
+  consent:n=>`I agree to receive my photo and try-on results by WhatsApp from ${n}.`,
+  ready:"Next", finishNoSend:"Finish without sending",
+  errPhone:"Enter your WhatsApp number (numbers only).", errConsent:"Tick the box to agree before we send.",
+  askStaff:"Please ask our staff to send it", askStaffBody:"Your photo and results are ready. A staff member will send them to:",
+  forStaff:"For staff", st1:"Exit Guided Access / app pinning.", st2:"Tap Save photo and save the image to the gallery.",
+  st3:"Tap Open WhatsApp. The chat opens with the message typed.", st4:"Attach the saved photo, send, then come back and tap New customer.",
+  savePhoto:"1 · Save photo", openWA:"2 · Open WhatsApp", shareAll:"Or share photo + text (saved contacts)", doneNew:"New customer",
+  saved:"Photo ready to save", copied:"Message copied",
+  estimate:"Sizes and PD are camera estimates (±3–4 mm). Confirm PD with a PD ruler or pupillometer before ordering lenses.",
+  errCam:"The camera is blocked. Staff: allow camera access for this app, then start again.",
+  errAI:"The face AI could not load. Connect to the internet once, then start again.",
   shapes:{ oval:"Oval", round:"Round", square:"Square", heart:"Heart", long:"Long" },
-  frames:{ round:"Round", oval:"Oval", square:"Square", rectangle:"Rectangle", browline:"Browline", cateye:"Cat-eye", aviator:"Aviator", hexagon:"Hexagon", oversized:"Oversized", panto:"Panto" },
-  mats:{ gold:"Gold metal", maroon:"Maroon acetate", wood:"Wood-grain acetate", tortoise:"Tortoise", black:"Black", crystal:"Crystal clear", gunmetal:"Gunmetal" },
-  generic:"A good all-round match for your face shape.",
+  frames:{ square:"Square", rectangle:"Rectangle", round:"Round", oval:"Oval", cateye:"Cat-eye", aviator:"Aviator", browline:"Browline", geometric:"Geometric", panto:"Panto" },
+  waHead:n=>`Hi! Here are your frame try-on results from ${n}.`, waFace:(s,pd)=>`Face shape: ${s} · PD ≈ ${pd} mm`,
+  waLine:(i,t)=>`${i}) ${t.name} ${t.size} — Overall ${t.o}/10 (Design ${t.d} · Size ${t.s})`, waBest:i=>`Best match: frame ${i}.`,
+  waEnd:"Measurements are estimates. We'll confirm them for you in store.",
+  cardTitle:"Frame try-on result",
   reasons:{
-   round:{ square:"Straight lines add structure to soft, round features.", rectangle:"A wide, angular shape makes the face look longer and slimmer.", hexagon:"Geometric angles add sharp definition to soft curves.", browline:"A strong top line lifts the eyes and balances full cheeks.", cateye:"Upswept corners lift the face and add angles.", aviator:"The tapered bottom slims the lower face.", oversized:"A bigger frame balances full cheeks." },
-   square:{ round:"Soft curves balance a strong, angular jaw.", oval:"Smooth oval lines soften your angles.", panto:"A rounded bottom softens the jawline.", aviator:"Curved, tapered lenses soften a wide jaw.", cateye:"Lifted corners draw the eye up, away from the jaw.", browline:"A bold brow line balances a strong jaw.", oversized:"Large rounded lenses balance strong features." },
-   oval:{ square:"Balanced proportions like yours carry bold, angular frames well.", rectangle:"Clean lines keep your natural balance.", aviator:"A classic shape that suits balanced proportions.", browline:"A defined brow line adds character without overpowering.", cateye:"Upswept corners highlight your cheekbones.", hexagon:"Geometric lines add a modern edge.", panto:"A soft retro shape that keeps your face balanced.", round:"Round lenses give a friendly, relaxed look on an oval face." },
-   heart:{ oval:"Soft, balanced lenses even out a wider forehead.", round:"Rounded shapes soften a narrow chin.", panto:"A fuller bottom adds width to the lower face.", aviator:"The deeper bottom balances a wider forehead.", rectangle:"Light, slim lines keep the upper face calm.", hexagon:"Even geometric lines balance top and bottom.", square:"Softened corners add width at the jaw." },
-   long:{ oversized:"Deep, wide lenses make a long face look shorter.", square:"A deep, wide frame adds width to the face.", aviator:"Tall lenses fill more of the face and add balance.", round:"Round lenses add width and soften length.", panto:"A tall, rounded shape breaks up face length.", hexagon:"Bold geometric width balances face length.", browline:"A strong horizontal brow adds width." },
+   round:{ square:"Straight lines add structure to soft, round features.", rectangle:"A wide, angular shape makes the face look longer and slimmer.", geometric:"Geometric angles add sharp definition to soft curves.", browline:"A strong top line lifts the eyes and balances full cheeks.", cateye:"Upswept corners lift the face and add angles.", aviator:"The tapered bottom slims the lower face." },
+   square:{ round:"Soft curves balance a strong, angular jaw.", oval:"Smooth oval lines soften your angles.", panto:"A rounded bottom softens the jawline.", aviator:"Curved, tapered lenses soften a wide jaw.", cateye:"Lifted corners draw the eye up, away from the jaw.", browline:"A bold brow line balances a strong jaw." },
+   oval:{ square:"Balanced proportions like yours carry bold, angular frames well.", rectangle:"Clean lines keep your natural balance.", aviator:"A classic shape that suits balanced proportions.", browline:"A defined brow line adds character without overpowering.", cateye:"Upswept corners highlight your cheekbones.", geometric:"Geometric lines add a modern edge.", panto:"A soft retro shape that keeps your face balanced.", round:"Round lenses give a friendly, relaxed look on an oval face.", oval:"A gentle shape that follows your natural balance." },
+   heart:{ oval:"Soft, balanced lenses even out a wider forehead.", round:"Rounded shapes soften a narrow chin.", panto:"A fuller bottom adds width to the lower face.", aviator:"The deeper bottom balances a wider forehead.", rectangle:"Light, slim lines keep the upper face calm.", geometric:"Even geometric lines balance top and bottom.", square:"Softened corners add width at the jaw." },
+   long:{ square:"A deep, wide frame adds width to the face.", aviator:"Tall lenses fill more of the face and add balance.", round:"Round lenses add width and soften length.", panto:"A tall, rounded shape breaks up face length.", geometric:"Bold geometric width balances face length.", browline:"A strong horizontal brow adds width.", cateye:"Upswept corners add width at the temples." },
   },
+  low:{ round:"Curved frames repeat the curves of a round face. An angular style adds more definition.", square:"Angular frames repeat a strong jaw. A softer, rounded style balances it.", oval:"This shape works, though bolder styles may flatter you more.", heart:"Top-heavy styles widen the forehead further. A lighter top or rounder bottom balances it.", long:"Shallow frames can make the face look longer. Deeper lenses balance it." },
  },
  ms:{
-  scanTitle:"Mari baca bentuk muka anda", scanBody:"Berdiri kira-kira sedepa dari skrin dan pandang terus ke hadapan. Ia mengambil masa kira-kira 3 saat.",
-  step1:"1 · Pandang terus", step2:"2 · Jangan bergerak", step3:"3 · Lihat 3 pilihan terbaik", back:"Kembali",
+  back:"Kembali", next:"Seterusnya · Imbas muka", restart:"Mula semula", opt:"(pilihan)",
+  fTitle:"Pakai bingkai, kemudian masukkan saiznya", fLead:"Saiz dicetak di bahagian dalam batang bingkai.",
+  gCap:"<b>Contoh: 52 □ 18 – 145</b> · 52 = lebar kanta · 18 = jambatan · 145 = panjang batang (semua dalam mm). Kadang-kadang ditulis 52-18-145.",
+  lA:"Lebar kanta", lB:"Jambatan", lC:"Panjang batang", hA:"Biasanya 45–58", hB:"Biasanya 14–22", hC:"Biasanya 135–150",
+  pickShape:"Apakah bentuk bingkai ini?", tryN:n=>`Bingkai ${n}`,
+  errA:"Lebar kanta mesti antara 38 dan 65.", errB:"Jambatan mesti antara 12 dan 26.", errC:"Panjang batang mesti antara 120 dan 160.", errShape:"Tekan bentuk yang paling serupa dengan bingkai anda.",
+  svg:{ lblA:"Lebar kanta", lblB:"Jambatan", lblC:"Panjang batang", lookInside:"Lihat di dalam batang" },
+  scanTitle:"Kekalkan bingkai dan pandang terus", scanBody:"Berdiri kira-kira sedepa dari skrin. Kami akan baca muka anda, kemudian ambil gambar.",
   loadingAI:"Menyediakan AI…", looking:"Mencari muka anda…", closer:"Dekatkan sedikit", farther:"Jauhkan sedikit",
-  straight:"Luruskan kepala anda", hold:"Jangan bergerak…", glasses:"Tip: tanggalkan cermin mata untuk bacaan lebih tepat",
-  centre:"Bergerak ke tengah skrin", done1:"Siap!",
-  top3:"3 pilihan terbaik anda", faceShape:"Bentuk muka", more:"Bingkai lain untuk dicuba", rescan:"Imbas semula", done:"Selesai · Tunjuk staf",
-  fitGood:"Saiz sesuai", fitWide:"Agak lebar", fitNarrow:"Agak sempit",
-  forStaff:"Untuk staf", sumTitle:"Ringkasan pelanggan", tried:"Bingkai yang dicuba", backTry:"Kembali cuba", newCustomer:"Pelanggan baharu",
-  kShape:"Bentuk muka", kWidth:"Lebar muka", kPD:"Jarak pupil (PD)", kFrameW:"Lebar bingkai dicadangkan", kLens:"Saiz dicadangkan", kTemple:"Lebar pelipis", kScore:"Skor", max:"maksimum", scoreHow:(a,b)=>`${a}% padanan bentuk muka · ${b}% saiz`,
-  estimate:"Ukuran ialah anggaran kamera (±3–4 mm). Sahkan PD dengan pupilometer atau pembaris PD sebelum menempah kanta.",
-  noneTried:"Hanya pilihan pertama ditunjukkan", offlineOk:"Sedia luar talian", offlineNo:"Belum disimpan untuk luar talian", restart:"Mula semula",
-  errCam:"Kamera disekat. Staf: benarkan akses kamera untuk aplikasi ini dalam tetapan Chrome, kemudian mula semula.",
-  errAI:"AI muka tidak dapat dimuatkan. Sambungkan tablet ke internet sekali, kemudian mula semula.",
-  fitNum:(w,f)=>`Bingkai ${w} mm · muka anda ${f} mm`,
+  straight:"Luruskan kepala anda", hold:"Jangan bergerak…", centre:"Bergerak ke tengah skrin", smile:"Senyum! Mengambil gambar",
+  overall:"Keseluruhan", design:"Padanan reka bentuk", size:"Padanan saiz", retake:"Ambil semula", another:"Cuba bingkai lain", sendWA:"Hantar ke WhatsApp saya",
+  facts:(r,f)=>[`Bentuk muka <b>${r.shapeName}</b>`, `PD ≈ <b>${Math.round(r.pdMm)} mm</b>`, `Bingkai <b>${f.A}□${f.B}${f.C?`–${f.C}`:""}</b>`],
+  wDet:(fw,face)=>`Bingkai ≈ ${fw} mm · muka anda ≈ ${face} mm`, pdDet:(c,pd)=>`Pusat kanta ${c} mm · PD anda ≈ ${pd} mm`,
+  wGood:"Lebarnya sesuai dengan muka anda.", wWide:"Agak lebar untuk muka anda.", wNarrow:"Agak sempit untuk muka anda.",
+  pGood:"Pusat kanta selari dengan mata anda.", pWide:"Pusat kanta lebih lebar daripada mata anda.", pNarrow:"Pusat kanta lebih sempit daripada mata anda.",
+  sendTitle:"Keputusan anda", yourWA:"Nombor WhatsApp anda",
+  consent:n=>`Saya bersetuju menerima gambar dan keputusan cubaan saya melalui WhatsApp daripada ${n}.`,
+  ready:"Seterusnya", finishNoSend:"Selesai tanpa hantar",
+  errPhone:"Masukkan nombor WhatsApp anda (nombor sahaja).", errConsent:"Tandakan kotak untuk bersetuju sebelum kami hantar.",
+  askStaff:"Sila minta staf kami hantarkan", askStaffBody:"Gambar dan keputusan anda sudah sedia. Staf akan hantar ke:",
+  forStaff:"Untuk staf", st1:"Keluar daripada Guided Access / app pinning.", st2:"Tekan Simpan gambar dan simpan ke galeri.",
+  st3:"Tekan Buka WhatsApp. Sembang dibuka dengan mesej sedia ditaip.", st4:"Lampirkan gambar, hantar, kemudian kembali dan tekan Pelanggan baharu.",
+  savePhoto:"1 · Simpan gambar", openWA:"2 · Buka WhatsApp", shareAll:"Atau kongsi gambar + teks (kenalan disimpan)", doneNew:"Pelanggan baharu",
+  saved:"Gambar sedia untuk disimpan", copied:"Mesej disalin",
+  estimate:"Saiz dan PD ialah anggaran kamera (±3–4 mm). Sahkan PD dengan pembaris PD atau pupilometer sebelum menempah kanta.",
+  errCam:"Kamera disekat. Staf: benarkan akses kamera untuk aplikasi ini, kemudian mula semula.",
+  errAI:"AI muka tidak dapat dimuatkan. Sambung ke internet sekali, kemudian mula semula.",
   shapes:{ oval:"Bujur", round:"Bulat", square:"Segi empat", heart:"Hati", long:"Panjang" },
-  frames:{ round:"Bulat", oval:"Bujur", square:"Segi empat sama", rectangle:"Segi empat tepat", browline:"Browline", cateye:"Mata kucing", aviator:"Aviator", hexagon:"Heksagon", oversized:"Besar", panto:"Panto" },
-  mats:{ gold:"Logam emas", maroon:"Asetat merah marun", wood:"Asetat corak kayu", tortoise:"Corak kulit penyu", black:"Hitam", crystal:"Jernih", gunmetal:"Kelabu besi" },
-  generic:"Padanan yang baik untuk bentuk muka anda.",
+  frames:{ square:"Segi empat sama", rectangle:"Segi empat tepat", round:"Bulat", oval:"Bujur", cateye:"Mata kucing", aviator:"Aviator", browline:"Browline", geometric:"Geometri", panto:"Panto" },
+  waHead:n=>`Hai! Ini keputusan cubaan bingkai anda daripada ${n}.`, waFace:(s,pd)=>`Bentuk muka: ${s} · PD ≈ ${pd} mm`,
+  waLine:(i,t)=>`${i}) ${t.name} ${t.size} — Keseluruhan ${t.o}/10 (Reka bentuk ${t.d} · Saiz ${t.s})`, waBest:i=>`Padanan terbaik: bingkai ${i}.`,
+  waEnd:"Ukuran ialah anggaran. Kami akan sahkan untuk anda di kedai.",
+  cardTitle:"Keputusan cubaan bingkai",
   reasons:{
-   round:{ square:"Garisan lurus menambah struktur pada raut muka yang bulat.", rectangle:"Bentuk lebar bersudut membuat muka kelihatan lebih panjang dan langsing.", hexagon:"Sudut geometri memberi garisan yang lebih tegas.", browline:"Garisan atas yang tebal menaikkan fokus ke mata dan mengimbangi pipi.", cateye:"Hujung yang terangkat memberi kesan muka lebih terangkat.", aviator:"Bahagian bawah yang meruncing melangsingkan bahagian bawah muka.", oversized:"Bingkai lebih besar mengimbangi pipi yang penuh." },
-   square:{ round:"Lengkung lembut mengimbangi rahang yang tegas.", oval:"Garisan bujur yang licin melembutkan sudut muka.", panto:"Bahagian bawah yang bulat melembutkan garis rahang.", aviator:"Kanta melengkung dan meruncing melembutkan rahang yang lebar.", cateye:"Hujung terangkat menarik perhatian ke atas, jauh dari rahang.", browline:"Garisan kening yang tebal mengimbangi rahang yang kuat.", oversized:"Kanta besar yang bulat mengimbangi raut muka yang tegas." },
-   oval:{ square:"Proporsi muka yang seimbang sesuai dengan bingkai bersudut.", rectangle:"Garisan kemas mengekalkan keseimbangan semula jadi muka anda.", aviator:"Bentuk klasik yang sesuai dengan proporsi seimbang.", browline:"Garisan kening yang jelas menambah karakter tanpa berlebihan.", cateye:"Hujung terangkat menonjolkan tulang pipi anda.", hexagon:"Garisan geometri memberi sentuhan moden.", panto:"Bentuk retro yang lembut dan kekal seimbang.", round:"Kanta bulat memberi rupa mesra dan santai pada muka bujur." },
-   heart:{ oval:"Kanta yang lembut dan seimbang mengimbangi dahi yang lebih lebar.", round:"Bentuk bulat melembutkan dagu yang kecil.", panto:"Bahagian bawah yang penuh menambah lebar pada bahagian bawah muka.", aviator:"Bahagian bawah yang dalam mengimbangi dahi yang lebar.", rectangle:"Garisan nipis dan ringan mengekalkan bahagian atas muka.", hexagon:"Garisan geometri yang sekata mengimbangi atas dan bawah.", square:"Sudut yang lembut menambah lebar pada rahang." },
-   long:{ oversized:"Kanta yang dalam dan lebar menjadikan muka panjang kelihatan lebih pendek.", square:"Bingkai yang dalam dan lebar menambah kelebaran muka.", aviator:"Kanta yang tinggi mengisi lebih banyak ruang muka.", round:"Kanta bulat menambah kelebaran dan mengurangkan kesan panjang.", panto:"Bentuk tinggi dan bulat memecahkan kesan muka panjang.", hexagon:"Kelebaran geometri mengimbangi muka yang panjang.", browline:"Garisan kening mendatar menambah kelebaran." },
+   round:{ square:"Garisan lurus menambah struktur pada raut muka yang bulat.", rectangle:"Bentuk lebar bersudut membuat muka kelihatan lebih panjang dan langsing.", geometric:"Sudut geometri memberi garisan yang lebih tegas.", browline:"Garisan atas yang tebal menaikkan fokus ke mata dan mengimbangi pipi.", cateye:"Hujung yang terangkat memberi kesan muka lebih terangkat.", aviator:"Bahagian bawah yang meruncing melangsingkan bahagian bawah muka." },
+   square:{ round:"Lengkung lembut mengimbangi rahang yang tegas.", oval:"Garisan bujur yang licin melembutkan sudut muka.", panto:"Bahagian bawah yang bulat melembutkan garis rahang.", aviator:"Kanta melengkung dan meruncing melembutkan rahang yang lebar.", cateye:"Hujung terangkat menarik perhatian ke atas, jauh dari rahang.", browline:"Garisan kening yang tebal mengimbangi rahang yang kuat." },
+   oval:{ square:"Proporsi muka yang seimbang sesuai dengan bingkai bersudut.", rectangle:"Garisan kemas mengekalkan keseimbangan semula jadi muka anda.", aviator:"Bentuk klasik yang sesuai dengan proporsi seimbang.", browline:"Garisan kening yang jelas menambah karakter tanpa berlebihan.", cateye:"Hujung terangkat menonjolkan tulang pipi anda.", geometric:"Garisan geometri memberi sentuhan moden.", panto:"Bentuk retro yang lembut dan kekal seimbang.", round:"Kanta bulat memberi rupa mesra dan santai pada muka bujur.", oval:"Bentuk lembut yang mengikut keseimbangan semula jadi muka anda." },
+   heart:{ oval:"Kanta yang lembut dan seimbang mengimbangi dahi yang lebih lebar.", round:"Bentuk bulat melembutkan dagu yang kecil.", panto:"Bahagian bawah yang penuh menambah lebar pada bahagian bawah muka.", aviator:"Bahagian bawah yang dalam mengimbangi dahi yang lebar.", rectangle:"Garisan nipis dan ringan mengekalkan bahagian atas muka.", geometric:"Garisan geometri yang sekata mengimbangi atas dan bawah.", square:"Sudut yang lembut menambah lebar pada rahang." },
+   long:{ square:"Bingkai yang dalam dan lebar menambah kelebaran muka.", aviator:"Kanta yang tinggi mengisi lebih banyak ruang muka.", round:"Kanta bulat menambah kelebaran dan mengurangkan kesan panjang.", panto:"Bentuk tinggi dan bulat memecahkan kesan muka panjang.", geometric:"Kelebaran geometri mengimbangi muka yang panjang.", browline:"Garisan kening mendatar menambah kelebaran.", cateye:"Hujung terangkat menambah kelebaran di pelipis." },
   },
+  low:{ round:"Bingkai melengkung mengulangi lengkung muka bulat. Gaya bersudut memberi lebih ketegasan.", square:"Bingkai bersudut mengulangi rahang yang tegas. Gaya lebih bulat dapat mengimbanginya.", oval:"Bentuk ini sesuai, tetapi gaya yang lebih tegas mungkin lebih menyerlah.", heart:"Gaya yang berat di atas melebarkan dahi. Bahagian atas yang ringan atau bawah yang bulat lebih seimbang.", long:"Bingkai yang cetek boleh membuat muka nampak lebih panjang. Kanta yang lebih dalam lebih seimbang." },
  }
 };
 
@@ -375,26 +480,32 @@ const T = {
    ============================================================ */
 const $ = s => document.querySelector(s);
 const S = {
-  lang:"en", screen:"welcome", landmarker:null, aiError:null, stream:null, video:null,
-  mode:"idle",            // idle | scan | tryon
-  samples:[], result:null, picks:[], current:null, tried:new Set(),
-  pose:null, lastFaceAt:0, lastActAt:0, lastVideoTime:-1, mock:null,
+  lang:"en", screen:"welcome", landmarker:null, stream:null, video:null, mock:null,
+  mode:"idle",               // scan | capture | result
+  samples:[],                // all face measurements this session (pooled across tries)
+  face:null,                 // pooled face result
+  frame:null,                // current frame being tried {A,B,C,shape}
+  tries:[],                  // [{frame, photo(dataURL), crop, score}]
+  current:null,              // try being shown
+  phone:"", lastActAt:0, lastFaceAt:0, lastVideoTime:-1,
 };
 const t = k => T[S.lang][k];
-
 document.querySelectorAll("[data-brand-name]").forEach(e => e.textContent = BRAND.name);
 function applyText(){
-  document.documentElement.lang = S.lang === "ms" ? "ms" : "en";
-  document.querySelectorAll("[data-t]").forEach(e => { const v = t(e.dataset.t); if (typeof v === "string") e.textContent = v; });
+  document.documentElement.lang = S.lang;
+  document.querySelectorAll("[data-t]").forEach(e => { const v = t(e.dataset.t); if (typeof v === "string") e[/<b>/.test(v) ? "innerHTML" : "textContent"] = v; });
+  document.querySelectorAll("[data-svg]").forEach(e => e.textContent = t("svg")[e.dataset.svg]);
+  $("#consentTx").textContent = t("consent")(BRAND.name);
 }
 function show(id){
-  for (const s of ["welcome","mirror","summary"]) $("#"+s).hidden = (s !== id);
+  for (const s of ["welcome","frame","mirror","send","staff"]) $("#"+s).hidden = (s !== id);
   S.screen = id; S.lastActAt = performance.now();
 }
-document.addEventListener("pointerdown", () => S.lastActAt = performance.now(), { passive:true });
+["pointerdown","keydown"].forEach(ev => document.addEventListener(ev, () => S.lastActAt = performance.now(), { passive:true }));
+function toast(msg){ const el = $("#toast"); el.textContent = msg; el.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => el.hidden = true, 2200); }
 
 /* ============================================================
-   AI LOADING (MediaPipe Face Landmarker, 478 points incl. iris)
+   AI (MediaPipe Face Landmarker, 478 points incl. iris)
    ============================================================ */
 let aiPromise = null;
 function loadAI(){
@@ -402,12 +513,11 @@ function loadAI(){
   if (!aiPromise) aiPromise = (async () => {
     const { FaceLandmarker, FilesetResolver } = await import(`${MP_BASE}/vision_bundle.mjs`);
     const fileset = await FilesetResolver.forVisionTasks(`${MP_BASE}/wasm`);
-    const opts = d => ({ baseOptions:{ modelAssetPath:MODEL_URL, delegate:d }, runningMode:"VIDEO", numFaces:1,
-                         outputFaceBlendshapes:false, outputFacialTransformationMatrixes:false });
+    const opts = d => ({ baseOptions:{ modelAssetPath:MODEL_URL, delegate:d }, runningMode:"VIDEO", numFaces:1 });
     try { S.landmarker = await FaceLandmarker.createFromOptions(fileset, opts("GPU")); }
     catch(e){ S.landmarker = await FaceLandmarker.createFromOptions(fileset, opts("CPU")); }
     return S.landmarker;
-  })().catch(e => { S.aiError = e; aiPromise = null; throw e; });
+  })().catch(e => { aiPromise = null; throw e; });
   return aiPromise;
 }
 loadAI().catch(()=>{});
@@ -416,42 +526,39 @@ loadAI().catch(()=>{});
    CAMERA
    ============================================================ */
 async function startCamera(){
-  if (MOCK){ S.mock = makeMock(MOCK); S.video = S.mock.canvas; return; }
+  if (MOCK){ if (!S.mock) S.mock = makeMock(MOCK); S.video = S.mock.canvas; return; }
   if (S.stream) return;
-  const stream = await navigator.mediaDevices.getUserMedia({ audio:false,
-    video:{ facingMode:"user", width:{ ideal:1280 }, height:{ ideal:720 } } });
+  const stream = await navigator.mediaDevices.getUserMedia({ audio:false, video:{ facingMode:"user", width:{ ideal:1280 }, height:{ ideal:720 } } });
   S.stream = stream;
   const v = S.video || document.createElement("video");
-  v.playsInline = true; v.muted = true; v.srcObject = stream;
+  v.playsInline = true; v.muted = true; v.setAttribute("playsinline",""); v.srcObject = stream;
   await v.play(); S.video = v;
 }
 function stopCamera(){
   if (S.stream){ S.stream.getTracks().forEach(tr => tr.stop()); S.stream = null; }
   if (S.video && S.video.srcObject) S.video.srcObject = null;
 }
-let wakeLock = null;
-async function keepAwake(){ try { wakeLock = await navigator.wakeLock?.request("screen"); } catch(e){} }
+async function keepAwake(){ try { await navigator.wakeLock?.request("screen"); } catch(e){} }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.screen !== "welcome") keepAwake(); });
 
 /* ============================================================
-   GEOMETRY HELPERS
+   GEOMETRY
    ============================================================ */
 const cv = $("#cv"), ctx = cv.getContext("2d");
-let view = { cw:0, ch:0, s:1, ox:0, oy:0, vw:1, vh:1 };
+let view = { cw:0, ch:0, s:1, ox:0, oy:0, vw:1, vh:1, dpr:1 };
 function fitCanvas(){
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const r = cv.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2), r = cv.getBoundingClientRect();
   const w = Math.round(r.width*dpr), h = Math.round(r.height*dpr);
   if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
   const vw = S.video?.videoWidth || S.video?.width || 1, vh = S.video?.videoHeight || S.video?.height || 1;
   const s = Math.max(w/vw, h/vh);
   view = { cw:w, ch:h, s, ox:(w - vw*s)/2, oy:(h - vh*s)/2, vw, vh, dpr };
 }
-// landmark (normalised video coords) -> mirrored canvas pixel
 const P = (lm, i) => ({ x: view.cw - (view.ox + lm[i].x*view.vw*view.s), y: view.oy + lm[i].y*view.vh*view.s });
 const dist = (a,b) => Math.hypot(a.x-b.x, a.y-b.y);
 const median = arr => { const a=[...arr].sort((x,y)=>x-y), m=a.length>>1; return a.length%2 ? a[m] : (a[m-1]+a[m])/2; };
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const r1 = v => (Math.round(v*10)/10).toFixed(1);
 
 function measure(lm){
   const c = { L:P(lm,234), R:P(lm,454), tL:P(lm,127), tR:P(lm,356), jL:P(lm,172), jR:P(lm,397), fL:P(lm,54), fR:P(lm,284),
@@ -461,15 +568,11 @@ function measure(lm){
   const iris = (irisA + irisB)/2;
   const cheek = dist(c.L,c.R), temple = dist(c.tL,c.tR), jaw = dist(c.jL,c.jR), fore = dist(c.fL,c.fR), len = dist(c.top,c.chin);
   const dl = Math.abs(c.nose.x - c.L.x), dr = Math.abs(c.R.x - c.nose.x);
-  const yawS = (dl - dr)/(dl + dr);
   let a = c.iL, b = c.iR; if (a.x > b.x) [a,b] = [b,a];
-  const roll = Math.atan2(b.y - a.y, b.x - a.x);
   const mmPerPx = IRIS_MM / iris;
-  return { c, iris, cheek, temple, jaw, fore, len, yawS, roll, eyeA:a, eyeB:b, mmPerPx,
-           lr: len/cheek, jr: jaw/cheek, fr: fore/cheek,
-           cheekMm: cheek*mmPerPx, templeMm: temple*mmPerPx, pdMm: dist(c.iL,c.iR)*mmPerPx };
+  return { c, iris, cheek, temple, yawS:(dl-dr)/(dl+dr), roll:Math.atan2(b.y-a.y, b.x-a.x),
+           lr:len/cheek, jr:jaw/cheek, fr:fore/cheek, cheekMm:cheek*mmPerPx, templeMm:temple*mmPerPx, pdMm:dist(c.iL,c.iR)*mmPerPx };
 }
-
 function classify(lr, jr, fr){
   const R = SHAPE_RULES;
   if (lr >= R.longMin) return "long";
@@ -478,325 +581,359 @@ function classify(lr, jr, fr){
   if (lr < R.roundLenMax && jr < R.squareJawMin) return "round";
   return "oval";
 }
+function poolFace(){
+  const sm = S.samples, med = k => median(sm.map(s => s[k]));
+  const f = { lr:med("lr"), jr:med("jr"), fr:med("fr"), cheekMm:med("cheekMm"), templeMm:med("templeMm"), pdMm:med("pdMm") };
+  f.shape = classify(f.lr, f.jr, f.fr); f.idealW = f.templeMm - 1;
+  return f;
+}
 
 /* ============================================================
-   SCORING (out of 10.0)
+   SCORING (each out of 10)
    ============================================================ */
-function scoreFrame(f, r){
-  const shape = SHAPE_SCORE[r.shape][f.shape] ?? 6;
-  const ideal = r.idealW;
-  const wDiff = f.W - ideal;
-  const pdDiff = (f.A + f.DBL) - r.pdMm;            // frame centre distance vs PD; ~4–10 mm larger is normal
-  const fit = clamp(10 - Math.max(0, Math.abs(wDiff) - 3)*0.55 - Math.max(0, Math.abs(pdDiff - 7) - 5)*0.25, 0, 10);
-  const total = clamp(W_SHAPE*shape + W_FIT*fit, 0, 10);
-  return { f, shape, fit, total: Math.round(total*10)/10, wDiff };
+function score(frame, face){
+  const design = SHAPE_SCORE[face.shape][frame.shape] ?? 6.5;
+  const fw = 2*frame.A + frame.B + FRAME_EXTRA_MM;              // estimated total frame width
+  const wDiff = fw - face.idealW;
+  const wScore = clamp(10 - Math.max(0, Math.abs(wDiff) - 3)*0.6, 0, 10);
+  const centres = frame.A + frame.B;                            // distance between lens centres
+  const pDiff = centres - face.pdMm;                            // 2–10 mm larger than PD is normal
+  const pScore = clamp(10 - (pDiff < 2 ? 2 - pDiff : pDiff > 10 ? pDiff - 10 : 0)*0.4, 0, 10);
+  const size = 0.65*wScore + 0.35*pScore;
+  const overall = (design + size)/2;
+  return { design, size, overall, fw, wDiff, centres, pDiff };
 }
-function computePicks(r){
-  const scored = FRAMES.map(f => scoreFrame(f, r)).sort((a,b) => b.total - a.total);
-  const seen = new Set(), top = [];
-  for (const s of scored){ if (!seen.has(s.f.shape)){ seen.add(s.f.shape); top.push(s); } if (top.length === 3) break; }
-  return top;
+function designWhy(face, shape, d){ return d >= 7 ? (t("reasons")[face.shape]?.[shape] || t("low")[face.shape]) : t("low")[face.shape]; }
+function sizeWhy(sc){
+  const w = Math.abs(sc.wDiff) <= 3 ? t("wGood") : sc.wDiff > 0 ? t("wWide") : t("wNarrow");
+  const p = sc.pDiff < 2 ? t("pNarrow") : sc.pDiff > 10 ? t("pWide") : t("pGood");
+  return `${w} ${p}`;
 }
-function reasonFor(shape, frameShape){ return t("reasons")[shape]?.[frameShape] || t("generic"); }
-function fitLabel(wDiff){ return Math.abs(wDiff) <= 3 ? ["good", t("fitGood")] : wDiff > 0 ? ["warn", t("fitWide")] : ["warn", t("fitNarrow")]; }
 
 /* ============================================================
-   FRAME DRAWING (vector, true-to-size in mm)
+   FRAME ICONS (vector)
    ============================================================ */
 function superPts(A, B, nTop, nBot, N=72){
   const pts = [];
-  for (let k=0;k<N;k++){
-    const th = k/N*Math.PI*2, c = Math.cos(th), s = Math.sin(th);
-    const n = s < 0 ? nTop : nBot;
-    pts.push([ (A/2)*Math.sign(c)*Math.abs(c)**(2/n), (B/2)*Math.sign(s)*Math.abs(s)**(2/n) ]);
-  }
+  for (let k=0;k<N;k++){ const th=k/N*Math.PI*2, c=Math.cos(th), s=Math.sin(th), n = s<0 ? nTop : nBot;
+    pts.push([(A/2)*Math.sign(c)*Math.abs(c)**(2/n), (B/2)*Math.sign(s)*Math.abs(s)**(2/n)]); }
   return pts;
 }
-// lens outline for the RIGHT-hand lens; +x = outer side, +y = down
-function lensPts(f){
-  const { A, B } = f, hA = A/2, hB = B/2;
-  switch (f.shape){
-    case "round":     return superPts(A,B,2,2);
-    case "oval":      return superPts(A,B,2.1,2.1);
-    case "square":    return superPts(A,B,4.6,4.6);
-    case "rectangle": return superPts(A,B,5.2,5.2);
-    case "oversized": return superPts(A,B,3.6,3.2);
-    case "browline":  return superPts(A,B,3.6,2.5);
-    case "panto":     return superPts(A,B,4.2,2.0);
-    case "hexagon": {
-      const v = [[hA,0],[hA*.5,hB],[-hA*.5,hB],[-hA,0],[-hA*.5,-hB],[hA*.5,-hB]], pts=[];
-      for (let i=0;i<6;i++){ const p=v[i], q=v[(i+1)%6]; for (let j=0;j<10;j++){ const u=j/10; pts.push([p[0]+(q[0]-p[0])*u, p[1]+(q[1]-p[1])*u]); } }
-      return pts;
-    }
-    case "cateye": return superPts(A,B,3.2,2.4).map(([x,y]) => {
-      const u = x/hA; if (y < 0 && u > 0) y -= B*0.22*u*u*(-y/hB+0.4)/1.4;
-      if (u > 0) x += A*0.03*u; return [x, y + B*0.04];
-    });
-    case "aviator": return superPts(A,B,3.0,2.0).map(([x,y]) => {
-      const u = x/hA; if (y > 0) y *= 1 + 0.28*(1-u)/2; return [x, y - B*0.08];
-    });
+function lensPts(shape, A, B){
+  const hA=A/2, hB=B/2;
+  switch (shape){
+    case "round": return superPts(A,A*0.92,2,2);
+    case "oval": return superPts(A,B*0.85,2.1,2.1);
+    case "square": return superPts(A,B,4.6,4.6);
+    case "rectangle": return superPts(A,B*0.72,5.2,5.2);
+    case "browline": return superPts(A,B,3.6,2.5);
+    case "panto": return superPts(A,B,4.2,2.0);
+    case "geometric": { const v=[[hA,0],[hA*.5,hB],[-hA*.5,hB],[-hA,0],[-hA*.5,-hB],[hA*.5,-hB]], pts=[];
+      for (let i=0;i<6;i++){ const p=v[i], q=v[(i+1)%6]; for (let j=0;j<10;j++){ const u=j/10; pts.push([p[0]+(q[0]-p[0])*u, p[1]+(q[1]-p[1])*u]); } } return pts; }
+    case "cateye": return superPts(A,B,3.2,2.4).map(([x,y]) => { const u=x/hA; if (y<0 && u>0) y -= B*0.22*u*u*(-y/hB+0.4)/1.4; if (u>0) x += A*0.03*u; return [x, y+B*0.04]; });
+    case "aviator": return superPts(A,B*1.05,3.0,2.0).map(([x,y]) => { const u=x/hA; if (y>0) y *= 1 + 0.28*(1-u)/2; return [x, y-B*0.08]; });
   }
   return superPts(A,B,2,2);
 }
-const patCache = {};
-function material(c, key, ppm){
-  const g = (stops, x0,y0,x1,y1) => { const gr = c.createLinearGradient(x0,y0,x1,y1); stops.forEach(([o,col]) => gr.addColorStop(o,col)); return gr; };
-  switch (key){
-    case "gold":     return g([[0,"#F6E2B0"],[.45,"#C9A050"],[.7,"#9C7530"],[1,"#E8CB86"]], 0,-25,0,25);
-    case "gunmetal": return g([[0,"#9AA0A8"],[.5,"#50555C"],[1,"#7C828A"]], 0,-25,0,25);
-    case "maroon":   return g([[0,"#9A2E40"],[.5,"#6B1726"],[1,"#4A0E19"]], 0,-25,0,25);
-    case "black":    return g([[0,"#3A3236"],[.35,"#141012"],[1,"#0A0809"]], 0,-25,0,25);
-    case "crystal":  return "rgba(238,228,214,.62)";
-    case "wood": case "tortoise": {
-      if (!patCache[key]){
-        const tc = document.createElement("canvas"); tc.width = tc.height = 128; const x = tc.getContext("2d");
-        if (key === "wood"){
-          x.fillStyle = "#A8743F"; x.fillRect(0,0,128,128);
-          for (let i=0;i<46;i++){ x.strokeStyle = i%3 ? "rgba(90,52,20,.45)" : "rgba(230,190,130,.35)"; x.lineWidth = 1+Math.random()*2.2;
-            x.beginPath(); const y0 = i*2.9; x.moveTo(0,y0); for (let k=0;k<=128;k+=16) x.lineTo(k, y0 + Math.sin(k/22+i)*2.2); x.stroke(); }
-        } else {
-          x.fillStyle = "#6A3E1A"; x.fillRect(0,0,128,128);
-          const cols = ["rgba(30,14,4,.75)","rgba(170,110,50,.55)","rgba(210,150,70,.45)","rgba(55,28,8,.7)"];
-          for (let i=0;i<70;i++){ x.fillStyle = cols[i%4]; x.beginPath(); x.ellipse(Math.random()*128, Math.random()*128, 3+Math.random()*12, 2+Math.random()*7, Math.random()*3, 0, 7); x.fill(); }
-        }
-        patCache[key] = tc;
-      }
-      const p = c.createPattern(patCache[key], "repeat");
-      p.setTransform(new DOMMatrix().scale(0.22));   // tile ≈ 28 mm
-      return p;
-    }
-  }
-  return "#222";
-}
-function pathFrom(c, pts, ox, mirror){
-  c.beginPath();
-  pts.forEach(([x,y],i) => { const X = ox + (mirror ? -x : x); i ? c.lineTo(X,y) : c.moveTo(X,y); });
-  c.closePath();
-}
-/* Draws a frame centred at (cx,cy) in canvas px. ppm = pixels per mm. */
-function drawFrame(c, f, cx, cy, ppm, ang=0, sx=1, alpha=1){
-  const pts = lensPts(f), half = (f.A + f.DBL)/2, W = Math.max(f.W, 2*f.A + f.DBL + 6);
-  const metal = f.rim === "metal", rimW = f.rim === "bold" ? 4.6 : metal ? 1.25 : 3.4;
-  const mat = material(c, f.mat, ppm);
-  c.save(); c.globalAlpha = alpha; c.translate(cx, cy); c.rotate(ang); c.scale(ppm*sx, ppm);
-  c.lineJoin = "round"; c.lineCap = "round";
-  // lenses: faint tint + reflection
-  for (const side of [1,-1]){
-    pathFrom(c, pts, side*half, side<0);
-    c.fillStyle = "rgba(210,225,240,.07)"; c.fill();
-    c.save(); c.clip();
-    const gr = c.createLinearGradient(side*half - f.A/2, -f.B/2, side*half + f.A/4, f.B/2);
-    gr.addColorStop(0,"rgba(255,255,255,0)"); gr.addColorStop(.42,"rgba(255,255,255,.16)"); gr.addColorStop(.5,"rgba(255,255,255,0)");
-    c.fillStyle = gr; c.fillRect(side*half - f.A/2, -f.B, f.A, f.B*2); c.restore();
-  }
-  // soft shadow for depth
-  c.shadowColor = "rgba(0,0,0,.35)"; c.shadowBlur = 2.2*ppm; c.shadowOffsetY = 0.8*ppm;
-  // rims
-  c.strokeStyle = mat;
-  for (const side of [1,-1]){
-    if (f.rim === "browline"){
-      c.lineWidth = 1.1; c.strokeStyle = material(c,"gold",ppm); pathFrom(c, pts, side*half, side<0); c.stroke();
-      c.lineWidth = 5.2; c.strokeStyle = mat; c.beginPath();
-      const top = pts.filter(([x,y]) => y < -f.B*0.12).sort((p,q) => p[0]-q[0]);
-      top.forEach(([x,y],i) => { const X = side*half + (side<0 ? -x : x); i ? c.lineTo(X,y) : c.moveTo(X,y); }); c.stroke();
-    } else { c.lineWidth = rimW; pathFrom(c, pts, side*half, side<0); c.stroke(); }
-  }
-  // crystal gets a defined edge
-  if (f.mat === "crystal"){ c.shadowColor="transparent"; c.lineWidth = .5; c.strokeStyle = "rgba(90,70,60,.55)";
-    for (const side of [1,-1]){ pathFrom(c, pts, side*half, side<0); c.stroke(); } }
-  // bridge
-  c.strokeStyle = metal ? material(c,"gold",ppm) : mat;
-  if (f.mat === "gunmetal") c.strokeStyle = material(c,"gunmetal",ppm);
-  const bx = f.DBL/2 + (metal ? 0.6 : 1.4), by = -f.B*0.2;
-  c.lineWidth = metal ? 1.3 : rimW*1.15;
-  c.beginPath(); c.moveTo(-bx, by); c.quadraticCurveTo(0, by - f.B*0.16, bx, by); c.stroke();
-  if (f.shape === "aviator"){ c.lineWidth = 1.2; c.beginPath(); c.moveTo(-f.DBL/2-4, -f.B/2+0.5); c.quadraticCurveTo(0, -f.B/2-1.6, f.DBL/2+4, -f.B/2+0.5); c.stroke(); }
-  // nose pads (metal)
-  if (metal || f.rim === "browline"){ c.shadowColor = "transparent"; c.fillStyle = "rgba(235,235,230,.35)";
-    for (const side of [1,-1]){ c.beginPath(); c.ellipse(side*(f.DBL/2+0.6), f.B*0.12, 1.6, 3, side*0.25, 0, 7); c.fill(); } }
-  // end pieces / hinges
-  c.shadowColor = "rgba(0,0,0,.3)"; c.fillStyle = metal ? c.strokeStyle : mat;
-  for (const side of [1,-1]){
-    const x0 = side*(half + f.A/2 - 1), x1 = side*(W/2);
-    c.beginPath(); c.moveTo(x0, -f.B*0.36); c.lineTo(x1, -f.B*0.30); c.lineTo(x1, -f.B*0.30 + (metal?1.6:3.4)); c.lineTo(x0, -f.B*0.14); c.closePath(); c.fill();
-  }
-  c.restore();
-}
-function thumb(canvas, f, pad=1.08){
+function drawIcon(canvas, shape){
   const dpr = Math.min(window.devicePixelRatio||1, 2), r = canvas.getBoundingClientRect();
   canvas.width = Math.max(1, r.width*dpr); canvas.height = Math.max(1, r.height*dpr);
-  const c = canvas.getContext("2d"); c.clearRect(0,0,canvas.width,canvas.height);
-  const ppm = Math.min(canvas.width/(f.W*pad), canvas.height/((f.B+8)*pad));
-  drawFrame(c, f, canvas.width/2, canvas.height/2 + f.B*0.04*ppm, ppm);
+  const c = canvas.getContext("2d"), A=50, B=40, D=18, W=2*A+D+10;
+  const ppm = Math.min(canvas.width/(W*1.08), canvas.height/((B+10)*1.1));
+  c.save(); c.translate(canvas.width/2, canvas.height/2); c.scale(ppm, ppm);
+  c.lineJoin="round"; c.lineCap="round"; c.strokeStyle="#E3C49C"; c.lineWidth = 3;
+  const pts = lensPts(shape, A, B), half=(A+D)/2;
+  for (const side of [1,-1]){ c.beginPath(); pts.forEach(([x,y],i)=>{ const X=side*half+(side<0?-x:x); i?c.lineTo(X,y):c.moveTo(X,y); }); c.closePath();
+    c.fillStyle="rgba(227,196,156,.08)"; c.fill(); c.lineWidth = shape==="browline" ? 1.4 : 3; c.stroke();
+    if (shape==="browline"){ c.lineWidth=6; c.beginPath(); pts.filter(([x,y])=>y<-B*0.12).sort((p,q)=>p[0]-q[0]).forEach(([x,y],i)=>{ const X=side*half+(side<0?-x:x); i?c.lineTo(X,y):c.moveTo(X,y); }); c.stroke(); c.lineWidth=3; } }
+  c.beginPath(); c.moveTo(-D/2-1,-B*0.2); c.quadraticCurveTo(0,-B*0.36,D/2+1,-B*0.2); c.stroke();
+  if (shape==="aviator"){ c.lineWidth=2; c.beginPath(); c.moveTo(-D/2-4,-B/2); c.quadraticCurveTo(0,-B/2-2,D/2+4,-B/2); c.stroke(); }
+  for (const side of [1,-1]){ c.beginPath(); c.moveTo(side*(half+A/2-1),-B*0.3); c.lineTo(side*W/2,-B*0.26); c.lineWidth=3; c.stroke(); }
+  c.restore();
 }
 
 /* ============================================================
-   MAIN LOOP
+   FRAME ENTRY SCREEN
+   ============================================================ */
+const inA=$("#inA"), inB=$("#inB"), inC=$("#inC");
+function buildShapes(){
+  const box = $("#shapes"); box.innerHTML = "";
+  SHAPES.forEach(sh => {
+    const b = document.createElement("button"); b.className = "shape"; b.dataset.shape = sh;
+    b.innerHTML = `<canvas></canvas><span></span>`; b.querySelector("span").textContent = t("frames")[sh];
+    b.onclick = () => { S.pickShape = sh; document.querySelectorAll(".shape").forEach(e => e.classList.toggle("on", e.dataset.shape === sh)); validate(); };
+    box.append(b); requestAnimationFrame(() => drawIcon(b.querySelector("canvas"), sh));
+  });
+}
+function num(el){ const v = parseInt(el.value.replace(/\D/g,""),10); return isNaN(v) ? null : v; }
+function validate(show){
+  const A=num(inA), B=num(inB), C=num(inC); let err = "";
+  const okA = A!==null && A>=38 && A<=65, okB = B!==null && B>=12 && B<=26, okC = C===null || (C>=120 && C<=160);
+  inA.classList.toggle("bad", inA.value!=="" && !okA); inB.classList.toggle("bad", inB.value!=="" && !okB); inC.classList.toggle("bad", inC.value!=="" && !okC);
+  if (inA.value!=="" && !okA) err = t("errA"); else if (inB.value!=="" && !okB) err = t("errB"); else if (!okC) err = t("errC");
+  else if (show && !S.pickShape) err = t("errShape");
+  $("#fErr").textContent = err;
+  const ok = okA && okB && okC && !!S.pickShape;
+  $("#btn-fnext").disabled = !ok;
+  return ok ? { A, B, C, shape:S.pickShape } : null;
+}
+[inA,inB,inC].forEach(el => el.addEventListener("input", () => { el.value = el.value.replace(/\D/g,""); validate(); }));
+inA.addEventListener("input", () => { if (inA.value.length === 2) inB.focus(); });
+inB.addEventListener("input", () => { if (inB.value.length === 2) inC.focus(); });
+function openFrame(){
+  inA.value = ""; inB.value = ""; inC.value = ""; S.pickShape = null;
+  show("frame"); applyText(); buildShapes(); validate();
+  $("#tryCount").textContent = t("tryN")(S.tries.length + 1);
+  $("#frame").scrollTop = 0;
+}
+
+/* ============================================================
+   MIRROR LOOP: scan -> countdown photo -> result
    ============================================================ */
 const OVAL = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
-function hint(main, sub){ const h = $("#hint"); if (!main){ h.hidden = true; return; } h.hidden = false; h.innerHTML = ""; h.append(main); if (sub){ const s = document.createElement("small"); s.textContent = sub; h.append(s); } }
-
+function hint(main, sub){ const h=$("#hint"); if (!main){ h.hidden = true; return; } h.hidden = false; h.textContent = main; if (sub){ const s=document.createElement("small"); s.textContent = sub; h.append(s); } }
 function detect(now){
   if (MOCK){ S.mock.step(now); return S.mock.lm; }
   if (!S.landmarker || !S.video || S.video.readyState < 2) return null;
-  if (S.video.currentTime === S.lastVideoTime) return S._lastLm;
+  if (S.video.currentTime === S.lastVideoTime) return S._lm;
   S.lastVideoTime = S.video.currentTime;
-  const res = S.landmarker.detectForVideo(S.video, now);
-  S._lastLm = res.faceLandmarks?.[0] || null;
-  return S._lastLm;
+  S._lm = S.landmarker.detectForVideo(S.video, now).faceLandmarks?.[0] || null;
+  return S._lm;
 }
-
 function loop(now){
   requestAnimationFrame(loop);
   if (S.screen === "welcome"){ drawAttract(now); return; }
   idleCheck(now);
   if (S.screen !== "mirror" || !S.video) return;
+  if (S.mode === "result") return;                         // frozen photo on screen
   fitCanvas();
-  const { cw, ch } = view;
-  ctx.save(); ctx.translate(cw, 0); ctx.scale(-1, 1);
-  ctx.drawImage(S.video, view.ox, view.oy, view.vw*view.s, view.vh*view.s);
-  ctx.restore();
-  let lm = null;
-  try { lm = detect(now); } catch(e){ lm = null; }
+  const { cw } = view;
+  ctx.save(); ctx.translate(cw, 0); ctx.scale(-1, 1); ctx.drawImage(S.video, view.ox, view.oy, view.vw*view.s, view.vh*view.s); ctx.restore();
+  let lm = null; try { lm = detect(now); } catch(e){}
   if (lm) S.lastFaceAt = now;
+  S._lmNow = lm;
   if (S.mode === "scan") scanStep(lm, now);
-  else if (S.mode === "tryon") tryStep(lm);
 }
-
-/* ---------- scan ---------- */
 function scanStep(lm, now){
   const { cw, ch } = view;
-  // guide oval
-  ctx.save(); ctx.strokeStyle = "rgba(227,196,156,.55)"; ctx.lineWidth = 3*view.dpr; ctx.setLineDash([10*view.dpr, 10*view.dpr]);
-  ctx.beginPath(); ctx.ellipse(cw/2, ch*0.48, Math.min(cw*0.26, ch*0.2), Math.min(cw*0.26, ch*0.2)*1.32, 0, 0, 7); ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.strokeStyle="rgba(227,196,156,.55)"; ctx.lineWidth=3*view.dpr; ctx.setLineDash([10*view.dpr,10*view.dpr]);
+  const rx = Math.min(cw*0.26, ch*0.2); ctx.beginPath(); ctx.ellipse(cw/2, ch*0.47, rx, rx*1.32, 0, 0, 7); ctx.stroke(); ctx.restore();
   if (!MOCK && !S.landmarker){ hint(t("loadingAI")); return; }
-  if (!lm){ hint(t("looking"), t("glasses")); return; }
+  if (!lm){ hint(t("looking")); return; }
   const m = measure(lm);
-  // AI mesh feel: draw outline + eye points
-  ctx.save(); ctx.fillStyle = "rgba(227,196,156,.9)";
-  for (const i of OVAL){ const p = P(lm,i); ctx.beginPath(); ctx.arc(p.x, p.y, 2.4*view.dpr, 0, 7); ctx.fill(); }
-  for (const p of [m.c.iL, m.c.iR]){ ctx.strokeStyle = "rgba(227,196,156,.9)"; ctx.lineWidth = 2*view.dpr; ctx.beginPath(); ctx.arc(p.x, p.y, m.iris/2, 0, 7); ctx.stroke(); }
-  ctx.strokeStyle = "rgba(227,196,156,.45)"; ctx.lineWidth = 1.5*view.dpr; ctx.setLineDash([6*view.dpr,6*view.dpr]);
-  for (const [a,b] of [[m.c.L,m.c.R],[m.c.jL,m.c.jR],[m.c.fL,m.c.fR],[m.c.top,m.c.chin]]){ ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+  ctx.save(); ctx.fillStyle="rgba(227,196,156,.9)";
+  for (const i of OVAL){ const p=P(lm,i); ctx.beginPath(); ctx.arc(p.x,p.y,2.4*view.dpr,0,7); ctx.fill(); }
+  ctx.strokeStyle="rgba(227,196,156,.9)"; ctx.lineWidth=2*view.dpr;
+  for (const p of [m.c.iL,m.c.iR]){ ctx.beginPath(); ctx.arc(p.x,p.y,m.iris/2,0,7); ctx.stroke(); }
+  ctx.setLineDash([6*view.dpr,6*view.dpr]); ctx.lineWidth=1.5*view.dpr; ctx.strokeStyle="rgba(227,196,156,.5)";
+  ctx.beginPath(); ctx.moveTo(m.c.iL.x,m.c.iL.y); ctx.lineTo(m.c.iR.x,m.c.iR.y); ctx.moveTo(m.c.tL.x,m.c.tL.y); ctx.lineTo(m.c.tR.x,m.c.tR.y); ctx.stroke();
   ctx.restore();
-
-  const rel = m.cheek / cw, mid = (m.c.L.x + m.c.R.x)/2;
+  const rel = m.cheek/cw, mid = (m.c.L.x+m.c.R.x)/2;
   let ok = false;
-  if (rel < 0.30) hint(t("closer"));
-  else if (rel > 0.80) hint(t("farther"));
+  if (rel < 0.30) hint(t("closer")); else if (rel > 0.80) hint(t("farther"));
   else if (Math.abs(mid - cw/2) > cw*0.18) hint(t("centre"));
   else if (Math.abs(m.yawS) > 0.12 || Math.abs(m.roll) > 0.14) hint(t("straight"));
-  else { ok = true; hint(t("hold"), t("glasses")); }
-  if (ok){ S.samples.push(m); S.lastActAt = now; }
-  $("#progress i").style.width = (S.samples.length / SCAN_SAMPLES * 100) + "%";
-  if (S.samples.length >= SCAN_SAMPLES) finishScan();
+  else { ok = true; hint(t("hold")); }
+  if (ok){ S.samples.push(m); S._scanCount++; S.lastActAt = now; }
+  $("#progress i").style.width = (S._scanCount/SCAN_SAMPLES*100) + "%";
+  if (S._scanCount >= SCAN_SAMPLES){ S.mode = "capture"; hint(null); countdown(); }
 }
-function finishScan(){
-  const sm = S.samples, med = k => median(sm.map(s => s[k]));
-  const lr = med("lr"), jr = med("jr"), fr = med("fr");
-  const r = { lr, jr, fr, cheekMm: med("cheekMm"), templeMm: med("templeMm"), pdMm: med("pdMm") };
-  r.shape = classify(lr, jr, fr);
-  r.idealW = Math.round(r.templeMm - 1);
-  r.lensA = Math.round((r.idealW - 18 - 14)/2);
-  S.result = r;
-  S.picks = computePicks(r);
-  S.tried = new Set();
-  S.pose = null;
-  hint(t("done1"));
-  setTimeout(() => { hint(null); enterTryOn(); }, 500);
-  S.mode = "done";
+async function countdown(){
+  const el = $("#count"); el.hidden = false; hint(t("smile"));
+  for (const n of [3,2,1]){ el.textContent = n; await new Promise(r => setTimeout(r, 800)); if (S.screen !== "mirror") { el.hidden = true; return; } }
+  el.hidden = true; hint(null);
+  capture();
 }
-
-/* ---------- try-on ---------- */
-function tryStep(lm){
-  const f = S.current; if (!f) return;
-  if (!lm){ return; }
-  const m = measure(lm);
-  const ppm = m.temple / S.result.templeMm;           // canvas px per mm (stable, uses calibrated temple width)
-  const mx = (m.eyeA.x + m.eyeB.x)/2, my = (m.eyeA.y + m.eyeB.y)/2;
-  const drop = 2.5*ppm;                               // pupils sit slightly above lens centre
-  const target = { cx: mx - Math.sin(m.roll)*drop, cy: my + Math.cos(m.roll)*drop, ang: m.roll, ppm,
-                   sx: clamp(Math.cos(m.yawS*1.3), 0.78, 1) };
-  if (!S.pose) S.pose = target;
-  else for (const k in target) S.pose[k] += (target[k] - S.pose[k]) * 0.5;
-  const p = S.pose;
-  drawFrame(ctx, f, p.cx, p.cy, p.ppm, p.ang, p.sx);
+function capture(){
+  // grab the current mirrored frame at full camera resolution
+  const vw = view.vw, vh = view.vh, oc = document.createElement("canvas"); oc.width = vw; oc.height = vh;
+  const o = oc.getContext("2d"); o.translate(vw,0); o.scale(-1,1); o.drawImage(S.video, 0, 0, vw, vh);
+  // face box (in video px, mirrored) for cropping the card
+  let box = null; const lm = S._lmNow;
+  if (lm){ const xs = OVAL.map(i => (1-lm[i].x)*vw), ys = OVAL.map(i => lm[i].y*vh);
+    box = { x0:Math.min(...xs), x1:Math.max(...xs), y0:Math.min(...ys), y1:Math.max(...ys) }; }
+  const fl = $("#flash"); fl.classList.add("on"); setTimeout(() => fl.classList.remove("on"), 60);
+  S.face = poolFace();
+  const sc = score(S.frame, S.face);
+  const tr = { frame:S.frame, shot:oc, box, sc };
+  if (S.retakeIdx != null){ S.tries[S.retakeIdx] = tr; S.retakeIdx = null; } else S.tries.push(tr);
+  S.current = tr;
+  S.tries.forEach(x => x.sc = score(x.frame, S.face));      // keep every try consistent with the latest face reading
+  showResult(tr);
 }
-function frameName(f){ return `${t("frames")[f.shape]} · ${f.id}`; }
-function frameSize(f){ return `${f.A}□${f.DBL} · ${f.W} mm`; }
-
-function enterTryOn(){
-  S.mode = "tryon";
-  $("#scanPanel").hidden = true; $("#tryPanel").hidden = false; $("#progress").hidden = true;
-  const r = S.result;
-  $("#faceShape").textContent = t("shapes")[r.shape];
-  $("#pill").hidden = false; $("#pill").textContent = `${t("faceShape")}: ${t("shapes")[r.shape]} · ${Math.round(r.cheekMm)} mm`;
-  renderPicks(); renderStrip();
-  select(S.picks[0].f);
+function showResult(tr){
+  S.mode = "result";
+  fitCanvas();
+  const img = tr.shot, s = Math.max(view.cw/img.width, view.ch/img.height);
+  ctx.drawImage(img, (view.cw - img.width*s)/2, (view.ch - img.height*s)/2, img.width*s, img.height*s);
+  $("#scanPanel").hidden = true; $("#resPanel").hidden = false; $("#progress").hidden = true;
+  const f = S.face, sc = tr.sc;
+  $("#ovNum").textContent = r1(sc.overall);
+  $("#dNum").textContent = r1(sc.design); $("#dBar").style.width = sc.design*10 + "%"; $("#dWhy").textContent = designWhy(f, tr.frame.shape, sc.design);
+  $("#sNum").textContent = r1(sc.size); $("#sBar").style.width = sc.size*10 + "%"; $("#sWhy").textContent = sizeWhy(sc);
+  $("#sDet").textContent = `${t("wDet")(Math.round(sc.fw), Math.round(f.idealW+1))} · ${t("pdDet")(tr.frame.A+tr.frame.B, Math.round(f.pdMm))}`;
+  const fd = { ...tr.frame }; f.shapeName = t("shapes")[f.shape];
+  $("#facts").innerHTML = t("facts")(f, fd).map(x => `<span>${x}</span>`).join("") + `<span>${t("frames")[tr.frame.shape]}</span>`;
+  $("#pill").textContent = `${t("tryN")(S.tries.indexOf(tr)+1)} · ${tr.frame.A}□${tr.frame.B}`;
+  drawRing($("#ring"), sc.overall);
 }
-function renderPicks(){
-  const box = $("#picks"); box.innerHTML = "";
-  S.picks.forEach((s, i) => {
-    const b = document.createElement("button"); b.className = "pick"; b.dataset.id = s.f.id;
-    const [cls, lab] = fitLabel(s.wDiff);
-    b.innerHTML = `<span class="rank">${i+1}</span><canvas></canvas>
-      <div class="score"><b>${s.total.toFixed(1)}</b><span>/ 10.0</span></div>
-      <div class="pname"></div><div class="psize"></div><div class="reason"></div><span class="fit ${cls}"></span>`;
-    b.querySelector(".pname").textContent = frameName(s.f);
-    b.querySelector(".psize").textContent = `${frameSize(s.f)} · ${t("mats")[s.f.mat]}`;
-    b.querySelector(".reason").textContent = reasonFor(S.result.shape, s.f.shape);
-    b.querySelector(".fit").textContent = lab;
-    b.onclick = () => select(s.f);
-    box.append(b);
-    requestAnimationFrame(() => thumb(b.querySelector("canvas"), s.f));
-  });
+function drawRing(canvas, v){
+  const dpr = Math.min(window.devicePixelRatio||1,2), r = canvas.getBoundingClientRect();
+  canvas.width = r.width*dpr; canvas.height = r.height*dpr;
+  const c = canvas.getContext("2d"), w = canvas.width, R = w/2 - 6*dpr;
+  c.lineWidth = 9*dpr; c.lineCap = "round";
+  c.strokeStyle = "rgba(255,255,255,.08)"; c.beginPath(); c.arc(w/2,w/2,R,0,7); c.stroke();
+  const g = c.createLinearGradient(0,0,w,w); g.addColorStop(0,"#E3C49C"); g.addColorStop(1,"#9C6A3C");
+  c.strokeStyle = g; c.beginPath(); c.arc(w/2,w/2,R,-Math.PI/2,-Math.PI/2 + Math.PI*2*v/10); c.stroke();
 }
-function renderStrip(){
-  const box = $("#strip"); box.innerHTML = "";
-  const topIds = new Set(S.picks.map(s => s.f.id));
-  FRAMES.filter(f => !topIds.has(f.id)).forEach(f => {
-    const b = document.createElement("button"); b.className = "thumb"; b.dataset.id = f.id;
-    b.innerHTML = `<canvas></canvas><span></span>`; b.querySelector("span").textContent = t("frames")[f.shape];
-    b.onclick = () => select(f); box.append(b);
-    requestAnimationFrame(() => thumb(b.querySelector("canvas"), f));
-  });
-}
-function select(f){
-  S.current = f; S.tried.add(f.id);
-  document.querySelectorAll(".pick,.thumb").forEach(e => e.classList.toggle("on", e.dataset.id === f.id));
-  const tn = $("#tryname"); tn.hidden = false; tn.textContent = `${frameName(f)} · ${frameSize(f)}`;
+function beginScan(){
+  S.mode = "scan"; S._scanCount = 0;
+  $("#scanPanel").hidden = false; $("#resPanel").hidden = true; $("#progress").hidden = false; $("#count").hidden = true;
+  $("#progress i").style.width = "0%"; hint(null);
+  $("#pill").textContent = `${t("tryN")(S.retakeIdx != null ? S.retakeIdx+1 : S.tries.length+1)} · ${S.frame.A}□${S.frame.B}`;
+  S.lastActAt = performance.now();
 }
 
-/* ---------- summary ---------- */
-function renderSummary(){
-  const r = S.result, g = $("#sumGrid");
-  const cell = (k, v, unit, n) => `<div class="cell"><div class="k">${k}</div><div class="v">${v}${unit ? ` <small>${unit}</small>` : ""}</div>${n ? `<div class="n">${n}</div>` : ""}</div>`;
-  g.innerHTML =
-    cell(t("kShape"), t("shapes")[r.shape], "", `L/W ${r.lr.toFixed(2)} · Jaw ${r.jr.toFixed(2)} · Fhd ${r.fr.toFixed(2)}`) +
-    cell(t("kPD"), Math.round(r.pdMm), "mm", "±3 mm") +
-    cell(t("kWidth"), Math.round(r.cheekMm), "mm", `${t("kTemple")} ${Math.round(r.templeMm)} mm`) +
-    cell(t("kFrameW"), `${r.idealW-3}–${r.idealW+3}`, "mm", "") +
-    cell(t("kLens"), `${r.lensA-1}–${r.lensA+1} □ 17–20`, "", "A □ DBL (mm)") +
-    cell(t("kScore"), "10.0", t("max"), t("scoreHow")(Math.round(W_SHAPE*100), Math.round(W_FIT*100)));
-  const pl = $("#sumPicks"); pl.innerHTML = "";
-  S.picks.forEach((s, i) => {
+/* ============================================================
+   PHOTO CARD (1080 × 1350, branded)
+   ============================================================ */
+function rrect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function woodFill(c,x,y,w,h){
+  const g = c.createLinearGradient(x,y,x+w,y); g.addColorStop(0,"#8C5C32"); g.addColorStop(.38,"#B98653"); g.addColorStop(.62,"#9C6A3C"); g.addColorStop(1,"#C49463");
+  c.fillStyle = g; c.fillRect(x,y,w,h);
+  c.strokeStyle = "rgba(60,30,10,.18)"; c.lineWidth = 1;
+  for (let i=x;i<x+w;i+=6){ c.beginPath(); c.moveTo(i,y); c.lineTo(i+2,y+h); c.stroke(); }
+}
+function drawCrop(c, tr, x, y, w, h){
+  const img = tr.shot; let { x0, x1, y0, y1 } = tr.box || { x0:img.width*.25, x1:img.width*.75, y0:img.height*.15, y1:img.height*.85 };
+  const fw = x1-x0, fh = y1-y0, cx = (x0+x1)/2, cy = (y0+y1)/2 - fh*0.05;
+  let sh = fh*1.55, sw = sh*w/h; if (sw < fw*1.5){ sw = fw*1.5; sh = sw*h/w; }
+  let sx = cx - sw/2, sy = cy - sh/2;
+  sx = clamp(sx, 0, Math.max(0, img.width - sw)); sy = clamp(sy, 0, Math.max(0, img.height - sh));
+  sw = Math.min(sw, img.width); sh = Math.min(sh, img.height);
+  c.save(); rrect(c,x,y,w,h,28); c.clip(); c.drawImage(img, sx, sy, sw, sh, x, y, w, h); c.restore();
+}
+function cardText(c, txt, x, y, font, color, align="left"){ c.font = font; c.fillStyle = color; c.textAlign = align; c.textBaseline = "alphabetic"; c.fillText(txt, x, y); }
+function makeCard(){
+  const W = 1080, H = 1350, c = document.createElement("canvas"); c.width = W; c.height = H;
+  const x = c.getContext("2d"), f = S.face;
+  const ranked = [...S.tries].map((tr,i) => ({ tr, i })).sort((a,b) => b.tr.sc.overall - a.tr.sc.overall);
+  x.fillStyle = "#1C0A0E"; x.fillRect(0,0,W,H);
+  const rg = x.createRadialGradient(W/2,0,50,W/2,0,W); rg.addColorStop(0,"rgba(142,39,56,.55)"); rg.addColorStop(1,"rgba(142,39,56,0)"); x.fillStyle = rg; x.fillRect(0,0,W,H);
+  // header
+  x.fillStyle = "#B4804F"; x.beginPath(); x.arc(92,96,38,0,7); x.fill();
+  x.strokeStyle = "#2a1406"; x.lineWidth = 6; [76,108].forEach(cx0 => { x.beginPath(); x.arc(cx0,100,12,0,7); x.stroke(); });
+  cardText(x, BRAND.name.toUpperCase(), 150, 92, "500 40px Georgia, 'Noto Serif', serif", "#F7ECDF");
+  cardText(x, t("cardTitle").toUpperCase(), 150, 128, "500 22px Roboto, Arial, sans-serif", "rgba(247,236,223,.7)");
+  cardText(x, new Date().toLocaleDateString(S.lang === "ms" ? "ms-MY" : "en-MY", { day:"numeric", month:"short", year:"numeric" }), W-60, 110, "400 24px Roboto, Arial, sans-serif", "rgba(247,236,223,.7)", "right");
+  const top = 170;
+  if (ranked.length === 1){
+    const tr = ranked[0].tr, sc = tr.sc;
+    drawCrop(x, tr, 60, top, W-120, 760);
+    // score block
+    const y0 = top + 790; woodFill(x, 60, y0, W-120, 6);
+    x.strokeStyle = "rgba(255,255,255,.1)"; x.lineWidth = 16; x.beginPath(); x.arc(190, y0+170, 110, 0, 7); x.stroke();
+    const g = x.createLinearGradient(80,y0,300,y0+300); g.addColorStop(0,"#E3C49C"); g.addColorStop(1,"#9C6A3C");
+    x.strokeStyle = g; x.lineCap = "round"; x.beginPath(); x.arc(190, y0+170, 110, -Math.PI/2, -Math.PI/2 + Math.PI*2*sc.overall/10); x.stroke();
+    cardText(x, r1(sc.overall), 190, y0+188, "500 76px Georgia, 'Noto Serif', serif", "#F7ECDF", "center");
+    cardText(x, t("overall").toUpperCase() + " / 10", 190, y0+226, "500 20px Roboto, Arial, sans-serif", "rgba(247,236,223,.7)", "center");
+    const bars = [[t("design"), sc.design], [t("size"), sc.size]];
+    bars.forEach(([lab, v], k) => {
+      const by = y0 + 92 + k*110;
+      cardText(x, lab, 350, by, "500 32px Roboto, Arial, sans-serif", "#F7ECDF");
+      cardText(x, r1(v) + " / 10", W-70, by, "500 36px Georgia, 'Noto Serif', serif", "#F7ECDF", "right");
+      x.fillStyle = "rgba(255,255,255,.1)"; rrect(x, 350, by+18, W-420, 16, 8); x.fill();
+      x.save(); rrect(x, 350, by+18, (W-420)*v/10, 16, 8); x.clip(); woodFill(x, 350, by+18, W-420, 16); x.restore();
+    });
+    const info = `${t("frames")[tr.frame.shape]} ${tr.frame.A}□${tr.frame.B}${tr.frame.C ? "–"+tr.frame.C : ""}  ·  ${t("shapes")[f.shape]}  ·  PD ≈ ${Math.round(f.pdMm)} mm`;
+    cardText(x, info, W/2, H-50, "400 26px Roboto, Arial, sans-serif", "rgba(247,236,223,.75)", "center");
+  } else {
+    // grid of up to 4 tries, ranked
+    const list = ranked.slice(0,4), cols = 2, gw = (W-120-24)/2, gh = list.length > 2 ? 470 : 880;
+    list.forEach(({ tr, i }, k) => {
+      const gx = 60 + (k%cols)*(gw+24), gy = top + Math.floor(k/cols)*(gh+90);
+      drawCrop(x, tr, gx, gy, gw, gh);
+      x.fillStyle = k === 0 ? "#B98653" : "#6E1B28"; rrect(x, gx+16, gy+16, 64, 64, 14); x.fill();
+      cardText(x, String(k+1), gx+48, gy+62, "500 38px Georgia, serif", k === 0 ? "#241205" : "#F7ECDF", "center");
+      cardText(x, `${t("frames")[tr.frame.shape]} ${tr.frame.A}□${tr.frame.B}`, gx, gy+gh+40, "500 28px Roboto, Arial, sans-serif", "#F7ECDF");
+      cardText(x, `${r1(tr.sc.overall)}`, gx+gw, gy+gh+44, "500 40px Georgia, serif", "#E3C49C", "right");
+      cardText(x, `${t("design")} ${r1(tr.sc.design)} · ${t("size")} ${r1(tr.sc.size)}`, gx, gy+gh+74, "400 22px Roboto, Arial, sans-serif", "rgba(247,236,223,.7)");
+    });
+    cardText(x, `${t("shapes")[f.shape]}  ·  PD ≈ ${Math.round(f.pdMm)} mm  ·  ${t("overall")} / 10`, W/2, H-50, "400 26px Roboto, Arial, sans-serif", "rgba(247,236,223,.75)", "center");
+  }
+  return c;
+}
+function waText(){
+  const f = S.face, ranked = [...S.tries].sort((a,b) => b.sc.overall - a.sc.overall);
+  const lines = [t("waHead")(BRAND.name), "", t("waFace")(t("shapes")[f.shape], Math.round(f.pdMm))];
+  ranked.forEach((tr,i) => lines.push(t("waLine")(i+1, { name:t("frames")[tr.frame.shape], size:`${tr.frame.A}□${tr.frame.B}${tr.frame.C?"–"+tr.frame.C:""}`,
+    o:r1(tr.sc.overall), d:r1(tr.sc.design), s:r1(tr.sc.size) })));
+  if (ranked.length > 1) lines.push(t("waBest")(1));
+  lines.push("", t("waEnd"));
+  return lines.join("\n");
+}
+
+/* ============================================================
+   SEND SCREENS
+   ============================================================ */
+function openSend(){
+  show("send");
+  const box = $("#tryList"); box.innerHTML = "";
+  [...S.tries].sort((a,b) => b.sc.overall - a.sc.overall).forEach((tr,k) => {
+    const c = document.createElement("canvas"); c.width = 240; c.height = 240; drawCrop(c.getContext("2d"), tr, 0, 0, 240, 240);
     const row = document.createElement("div"); row.className = "row";
-    row.innerHTML = `<canvas></canvas><div class="t"><b></b><span></span></div><div class="s">${s.total.toFixed(1)} <small>/ 10.0</small></div>`;
-    row.querySelector("b").textContent = `${i+1}. ${frameName(s.f)}`;
-    row.querySelector("span").textContent = `${frameSize(s.f)} · ${t("mats")[s.f.mat]} · ${t("fitNum")(s.f.W, r.idealW+1)}`;
-    pl.append(row); requestAnimationFrame(() => thumb(row.querySelector("canvas"), s.f));
+    row.innerHTML = `<img alt=""><div class="tx"><b></b><span></span></div><div class="sc">${r1(tr.sc.overall)}<small>/ 10</small></div>`;
+    row.querySelector("img").src = c.toDataURL("image/jpeg", .8);
+    row.querySelector("b").innerHTML = `<span class="rank">${k+1}</span>`; row.querySelector("b").append(`${t("frames")[tr.frame.shape]} ${tr.frame.A}□${tr.frame.B}`);
+    row.querySelector(".tx span").textContent = `${t("design")} ${r1(tr.sc.design)} · ${t("size")} ${r1(tr.sc.size)}`;
+    box.append(row);
   });
-  const tr = $("#sumTried"); tr.innerHTML = "";
-  const ids = [...S.tried];
-  if (ids.length <= 1){ const s = document.createElement("span"); s.textContent = t("noneTried"); tr.append(s); }
-  else ids.forEach(id => { const f = FRAMES.find(x => x.id === id); const s = document.createElement("span"); s.textContent = frameName(f); tr.append(s); });
-  const meta = $("#sumMeta"); meta.innerHTML = "";
-  const d = new Date(); const ts = document.createElement("span"); ts.textContent = d.toLocaleString(S.lang === "ms" ? "ms-MY" : "en-MY"); meta.append(ts);
-  const off = document.createElement("span"); off.textContent = "…"; meta.append(off);
-  offlineReady().then(ok => { off.className = ok ? "ok" : "no"; off.textContent = (ok ? "● " : "○ ") + t(ok ? "offlineOk" : "offlineNo"); });
+  S.card = makeCard();
+  $("#cardPrev").src = S.card.toDataURL("image/jpeg", .85);
+  $("#inCC").value = $("#inCC").value || DEFAULT_CC;
+  checkSend();
+  $("#send").scrollTop = 0;
 }
-async function offlineReady(){
-  try { if (!("caches" in window)) return false; const hit = await caches.match(MODEL_URL); return !!hit; } catch(e){ return false; }
+function phoneDigits(){
+  const cc = $("#inCC").value.replace(/\D/g,""); let n = $("#inPhone").value.replace(/\D/g,"");
+  if (!n) return null;
+  if (n.startsWith(cc) && n.length > 9) return n;      // already includes country code
+  n = n.replace(/^0+/, "");                              // 012-345 6789 -> 12 345 6789
+  return n.length >= 7 ? cc + n : null;
+}
+function checkSend(show){
+  const ph = phoneDigits(), ok = !!ph && $("#inConsent").checked;
+  $("#btn-ready").disabled = !ok;
+  $("#sErr").textContent = show ? (!ph ? t("errPhone") : !$("#inConsent").checked ? t("errConsent") : "") : "";
+  return ok ? ph : null;
+}
+["input","change"].forEach(ev => { $("#inPhone").addEventListener(ev, () => checkSend()); $("#inCC").addEventListener(ev, () => checkSend()); $("#inConsent").addEventListener(ev, () => checkSend()); });
+function openStaff(ph){
+  S.phone = ph; show("staff");
+  $("#numShow").textContent = "+" + ph.replace(/^(\d{2})(\d{2})(\d{3})(\d+)/, "$1 $2-$3 $4");
+}
+async function cardFile(){
+  const blob = await new Promise(r => S.card.toBlob(r, "image/jpeg", .9));
+  return new File([blob], `${BRAND.name.replace(/\W+/g,"-")}-try-on.jpg`, { type:"image/jpeg" });
+}
+async function savePhoto(){
+  const file = await cardFile();
+  if (navigator.canShare && navigator.canShare({ files:[file] })){
+    try { await navigator.share({ files:[file] }); return; } catch(e){ if (e.name === "AbortError") return; }
+  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = file.name; document.body.append(a); a.click(); a.remove();
+  toast(t("saved"));
+}
+async function shareAll(){
+  const file = await cardFile(), text = waText();
+  try { await navigator.clipboard?.writeText(text); } catch(e){}
+  if (navigator.canShare && navigator.canShare({ files:[file] })){ try { await navigator.share({ files:[file], text }); } catch(e){} }
+  else toast(t("copied"));
+}
+function openWA(){
+  const url = `https://wa.me/${S.phone}?text=${encodeURIComponent(waText())}`;
+  try { navigator.clipboard?.writeText(waText()); } catch(e){}
+  const w = window.open(url, "_blank"); if (!w) location.href = url;
 }
 
 /* ============================================================
@@ -804,104 +941,113 @@ async function offlineReady(){
    ============================================================ */
 async function start(lang){
   S.lang = lang; applyText();
-  try { await document.documentElement.requestFullscreen?.({ navigationUI:"hide" }); } catch(e){}
-  keepAwake();
-  show("mirror");
-  beginScan();
-  try { await startCamera(); }
-  catch(e){ showErr(t("errCam")); return; }
+  try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen?.({ navigationUI:"hide" }); } catch(e){}
+  keepAwake(); openFrame();
+}
+async function toMirror(){
+  show("mirror"); beginScan();
+  try { await startCamera(); } catch(e){ showErr(t("errCam")); return; }
   if (!MOCK) loadAI().catch(() => showErr(t("errAI")));
 }
-function beginScan(){
-  S.mode = "scan"; S.samples = []; S.pose = null; S.current = null;
-  $("#scanPanel").hidden = false; $("#tryPanel").hidden = true; $("#progress").hidden = false;
-  $("#progress i").style.width = "0%"; $("#pill").hidden = true; $("#tryname").hidden = true; hint(null);
-  S.lastActAt = performance.now();
-}
 function reset(){
-  stopCamera(); S.mode = "idle"; S.result = null; S.picks = []; S.tried = new Set(); S.current = null;
+  stopCamera(); S.mode = "idle"; S.samples = []; S.face = null; S.frame = null; S.tries = []; S.current = null; S.phone = ""; S.card = null; S.retakeIdx = null;
+  $("#inPhone").value = ""; $("#inConsent").checked = false; $("#inCC").value = DEFAULT_CC;
   $("#err").hidden = true; hint(null); show("welcome");
 }
 function showErr(msg){ $("#errMsg").textContent = msg; $("#err").hidden = false; }
 function idleCheck(now){
-  const lim = S.screen === "summary" ? IDLE_RESET_S.summary : S.mode === "tryon" ? IDLE_RESET_S.tryon : IDLE_RESET_S.scan;
-  const last = S.screen === "summary" ? S.lastActAt : Math.max(S.lastActAt, S.lastFaceAt);
+  const lim = IDLE_RESET_S[S.screen]; if (!lim) return;
+  const last = S.screen === "mirror" && S.mode !== "result" ? Math.max(S.lastActAt, S.lastFaceAt) : S.lastActAt;
   if (now - last > lim*1000) reset();
 }
 
 $("#btn-en").onclick = () => start("en");
 $("#btn-ms").onclick = () => start("ms");
-$("#btn-back").onclick = reset;
-$("#btn-rescan").onclick = beginScan;
-$("#btn-done").onclick = () => { renderSummary(); S.mode = "idle"; show("summary"); };
-$("#btn-sum-back").onclick = () => { show("mirror"); S.mode = "tryon"; S.lastFaceAt = performance.now(); };
-$("#btn-new").onclick = reset;
-$("#errBtn").onclick = () => { reset(); };
-window.addEventListener("resize", () => { if (S.mode === "tryon"){ renderPicks(); renderStrip(); if (S.current) select(S.current); } });
+$("#btn-fback").onclick = () => S.tries.length ? (show("mirror"), showResult(S.current)) : reset();
+$("#btn-fnext").onclick = () => { const fr = validate(true); if (!fr) return; S.frame = fr; toMirror(); };
+$("#btn-sback").onclick = () => S.tries.length ? showResult(S.current) : openFrame();
+$("#btn-retake").onclick = () => { S.retakeIdx = S.tries.indexOf(S.current); S.frame = S.current.frame; beginScan(); };
+$("#btn-another").onclick = () => openFrame();
+$("#btn-send").onclick = () => openSend();
+$("#btn-sendback").onclick = () => { show("mirror"); showResult(S.current); };
+$("#btn-ready").onclick = () => { const ph = checkSend(true); if (ph) openStaff(ph); };
+$("#btn-finish").onclick = reset;
+$("#btn-save").onclick = savePhoto;
+$("#btn-wa").onclick = openWA;
+$("#btn-share").onclick = shareAll;
+$("#btn-done").onclick = reset;
+$("#errBtn").onclick = reset;
+$("#btn-ready").addEventListener("pointerdown", () => { if ($("#btn-ready").disabled) checkSend(true); });
+document.querySelector("#send .actions").addEventListener("click", e => { if (e.target.id === "btn-ready" && e.target.disabled) checkSend(true); });
 
 /* ============================================================
-   WELCOME ANIMATION — cycles through frame shapes
+   WELCOME ANIMATION
    ============================================================ */
 const at = $("#attract"), actx = at.getContext("2d");
-const ATTRACT = ["DM-S50","DM-R48","DM-CE52","DM-AV56","DM-BR51","DM-HX51","DM-PT49"].map(id => FRAMES.find(f => f.id === id));
 function drawAttract(now){
-  const dpr = Math.min(window.devicePixelRatio||1, 2), r = at.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio||1,2), r = at.getBoundingClientRect();
   if (at.width !== Math.round(r.width*dpr)){ at.width = Math.round(r.width*dpr); at.height = Math.round(r.height*dpr); }
   actx.clearRect(0,0,at.width,at.height);
-  const period = 2600, k = Math.floor(now/period) % ATTRACT.length, ph = (now % period)/period;
-  const f = ATTRACT[k], alpha = ph < .15 ? ph/.15 : ph > .85 ? (1-ph)/.15 : 1;
-  const ppm = Math.min(at.width/(f.W*1.15), at.height/((f.B+10)*1.2));
-  drawFrame(actx, f, at.width/2, at.height/2, ppm, Math.sin(now/1400)*0.025, 1, alpha);
+  const period = 2400, k = Math.floor(now/period) % SHAPES.length, ph = (now%period)/period;
+  const alpha = ph < .15 ? ph/.15 : ph > .85 ? (1-ph)/.15 : 1;
+  const sh = SHAPES[k], A=50, B=40, D=18, W=2*A+D+10, ppm = Math.min(at.width/(W*1.15), at.height/((B+12)*1.2));
+  actx.save(); actx.globalAlpha = alpha; actx.translate(at.width/2, at.height/2); actx.rotate(Math.sin(now/1400)*0.025); actx.scale(ppm, ppm);
+  const g = actx.createLinearGradient(0,-25,0,25); g.addColorStop(0,"#9A2E40"); g.addColorStop(.5,"#6B1726"); g.addColorStop(1,"#4A0E19");
+  actx.strokeStyle = g; actx.lineWidth = 3.6; actx.lineJoin = "round"; actx.lineCap = "round";
+  actx.shadowColor = "rgba(0,0,0,.4)"; actx.shadowBlur = 3*ppm;
+  const pts = lensPts(sh, A, B), half = (A+D)/2;
+  for (const side of [1,-1]){ actx.beginPath(); pts.forEach(([x,y],i)=>{ const X=side*half+(side<0?-x:x); i?actx.lineTo(X,y):actx.moveTo(X,y); }); actx.closePath();
+    actx.fillStyle = "rgba(255,255,255,.04)"; actx.fill(); actx.stroke(); }
+  actx.beginPath(); actx.moveTo(-D/2-1,-B*0.2); actx.quadraticCurveTo(0,-B*0.36,D/2+1,-B*0.2); actx.stroke();
+  for (const side of [1,-1]){ actx.beginPath(); actx.moveTo(side*(half+A/2-1),-B*0.3); actx.lineTo(side*W/2,-B*0.26); actx.stroke(); }
+  actx.restore();
 }
 
 /* ============================================================
-   TEST MODE (?mock=oval|round|square|heart|long) — synthetic face, no camera
+   TEST MODE (?mock=oval|round|square|heart|long): synthetic face wearing the entered frame
    ============================================================ */
 function makeMock(kind){
   const prof = { oval:[1.32,.80,.86], round:[1.18,.80,.84], square:[1.22,.92,.92], heart:[1.30,.70,.90], long:[1.48,.82,.86] }[kind] || [1.32,.80,.86];
   const canvas = document.createElement("canvas"); canvas.width = 720; canvas.height = 960;
-  const c = canvas.getContext("2d");
-  const mm = 2.6;                                   // px per mm in the synthetic image
+  const c = canvas.getContext("2d"), mm = 2.6;
   const lm = Array.from({ length:478 }, () => ({ x:.5, y:.5, z:0 }));
   const o = { canvas, lm, step(now){
-    const sway = Math.sin(now/900)*6, tilt = Math.sin(now/1300)*0.03;
-    const cx = 360 + sway, cyEye = 400, Wc = 140*mm, L = prof[0]*Wc, Wj = prof[1]*Wc, Wf = prof[2]*Wc, Wt = Wc*0.97;
-    const top = cyEye - L*0.40, chin = cyEye + L*0.60;
-    const set = (i, x, y) => { const dx = x-cx, dy = y-cyEye; const X = cx + dx*Math.cos(tilt) - dy*Math.sin(tilt), Y = cyEye + dx*Math.sin(tilt) + dy*Math.cos(tilt); lm[i].x = X/720; lm[i].y = Y/960; };
-    // keys along the outline (index in OVAL list -> [x offset, y])
-    const keys = { 0:[0, top], 4:[Wf/2, top + L*0.10], 7:[Wt/2, cyEye - 4], 8:[Wc/2, cyEye + L*0.08], 12:[Wj/2, chin - L*0.22], 18:[0, chin] };
-    const pos = [];
-    const kIdx = Object.keys(keys).map(Number);
-    for (let j=0;j<=18;j++){
-      let a = kIdx.filter(k=>k<=j).pop(), b = kIdx.find(k=>k>=j);
-      const u = a===b ? 0 : (j-a)/(b-a), A = keys[a], B = keys[b];
-      const e = Math.sin(u*Math.PI/2);
-      pos[j] = [A[0] + (B[0]-A[0])*(j<=8 && a<8 ? e : u*u*(3-2*u)), A[1] + (B[1]-A[1])*u];
-    }
-    OVAL.forEach((idx, j) => { if (j <= 18) set(idx, cx + pos[j][0], pos[j][1]); else { const q = pos[36-j]; set(idx, cx - q[0], q[1]); } });
+    const sway = Math.sin(now/900)*5, tilt = Math.sin(now/1300)*0.02;
+    const cx = 360+sway, cyE = 400, Wc = 140*mm, L = prof[0]*Wc, Wj = prof[1]*Wc, Wf = prof[2]*Wc, Wt = Wc*0.97;
+    const top = cyE - L*0.40, chin = cyE + L*0.60;
+    const set = (i,x,y) => { const dx=x-cx, dy=y-cyE; lm[i].x = (cx + dx*Math.cos(tilt) - dy*Math.sin(tilt))/720; lm[i].y = (cyE + dx*Math.sin(tilt) + dy*Math.cos(tilt))/960; };
+    const keys = { 0:[0,top], 4:[Wf/2,top+L*0.10], 7:[Wt/2,cyE-4], 8:[Wc/2,cyE+L*0.08], 12:[Wj/2,chin-L*0.22], 18:[0,chin] };
+    const kIdx = Object.keys(keys).map(Number), pos = [];
+    for (let j=0;j<=18;j++){ const a = kIdx.filter(k=>k<=j).pop(), b = kIdx.find(k=>k>=j), u = a===b ? 0 : (j-a)/(b-a), A0 = keys[a], B0 = keys[b];
+      pos[j] = [A0[0] + (B0[0]-A0[0])*Math.sin(u*Math.PI/2), A0[1] + (B0[1]-A0[1])*u]; }
+    OVAL.forEach((idx,j) => { if (j <= 18) set(idx, cx+pos[j][0], pos[j][1]); else { const q = pos[36-j]; set(idx, cx-q[0], q[1]); } });
     const pd = 63*mm, ir = IRIS_MM*mm/2;
-    const eyes = [[468, cx - pd/2, [469,470,471,472]], [473, cx + pd/2, [474,475,476,477]]];
-    for (const [ci, ex, ring] of eyes){ set(ci, ex, cyEye); set(ring[0], ex+ir, cyEye); set(ring[1], ex, cyEye-ir); set(ring[2], ex-ir, cyEye); set(ring[3], ex, cyEye+ir); }
-    set(1, cx, cyEye + L*0.22); set(168, cx, cyEye - 6);
-    // paint synthetic face
+    const eyes = [[468, cx-pd/2, [469,470,471,472]], [473, cx+pd/2, [474,475,476,477]]];
+    for (const [ci,ex,ring] of eyes){ set(ci,ex,cyE); set(ring[0],ex+ir,cyE); set(ring[1],ex,cyE-ir); set(ring[2],ex-ir,cyE); set(ring[3],ex,cyE+ir); }
+    set(1, cx, cyE+L*0.22);
     c.fillStyle = "#3b3530"; c.fillRect(0,0,720,960);
-    const g = c.createRadialGradient(cx, cyEye, 40, cx, cyEye, Wc); g.addColorStop(0,"#d9a982"); g.addColorStop(1,"#a8775a");
-    c.fillStyle = g; c.beginPath();
-    OVAL.forEach((idx,j) => { const X = lm[idx].x*720, Y = lm[idx].y*960; j ? c.lineTo(X,Y) : c.moveTo(X,Y); }); c.closePath(); c.fill();
-    c.fillStyle = "#2a1a12"; c.beginPath(); c.ellipse(cx, top + 10, Wf*0.62, L*0.16, 0, Math.PI, 0); c.fill();
-    for (const [ci] of eyes){ const X = lm[ci].x*720, Y = lm[ci].y*960; c.fillStyle="#f4ece6"; c.beginPath(); c.ellipse(X,Y, 15*mm/2, 5.5*mm/2,0,0,7); c.fill(); c.fillStyle="#4a2f1f"; c.beginPath(); c.arc(X,Y, ir, 0, 7); c.fill(); c.fillStyle="#111"; c.beginPath(); c.arc(X,Y, ir*0.45, 0, 7); c.fill(); }
-    c.strokeStyle = "#8a5a44"; c.lineWidth = 4; c.beginPath(); c.moveTo(cx, cyEye+10); c.lineTo(cx-10, cyEye + L*0.22); c.lineTo(cx+8, cyEye+L*0.23); c.stroke();
-    c.strokeStyle = "#8c3f3f"; c.lineWidth = 6; c.beginPath(); c.arc(cx, cyEye + L*0.28, 40, 0.2*Math.PI, 0.8*Math.PI); c.stroke();
+    const g = c.createRadialGradient(cx,cyE,40,cx,cyE,Wc); g.addColorStop(0,"#d9a982"); g.addColorStop(1,"#a8775a");
+    c.fillStyle = g; c.beginPath(); OVAL.forEach((idx,j) => { const X=lm[idx].x*720, Y=lm[idx].y*960; j?c.lineTo(X,Y):c.moveTo(X,Y); }); c.closePath(); c.fill();
+    c.fillStyle = "#2a1a12"; c.beginPath(); c.ellipse(cx, top+10, Wf*0.62, L*0.16, 0, Math.PI, 0); c.fill();
+    for (const [ci] of eyes){ const X=lm[ci].x*720, Y=lm[ci].y*960; c.fillStyle="#f4ece6"; c.beginPath(); c.ellipse(X,Y,15*mm/2,5.5*mm/2,0,0,7); c.fill(); c.fillStyle="#4a2f1f"; c.beginPath(); c.arc(X,Y,ir,0,7); c.fill(); c.fillStyle="#111"; c.beginPath(); c.arc(X,Y,ir*.45,0,7); c.fill(); }
+    c.strokeStyle="#8a5a44"; c.lineWidth=4; c.beginPath(); c.moveTo(cx,cyE+10); c.lineTo(cx-10,cyE+L*0.22); c.lineTo(cx+8,cyE+L*0.23); c.stroke();
+    c.strokeStyle="#8c3f3f"; c.lineWidth=6; c.beginPath(); c.arc(cx,cyE+L*0.28,40,0.2*Math.PI,0.8*Math.PI); c.stroke();
+    // the "real" frame the customer is wearing (mock only)
+    if (S.frame){ const f = S.frame, pts = lensPts(f.shape, f.A, f.A*0.8), half = (f.A+f.B)/2;
+      c.save(); c.translate(cx, cyE + 2.5*mm); c.scale(mm, mm); c.strokeStyle = "#5a1420"; c.lineWidth = 3.2; c.lineJoin = "round";
+      for (const side of [1,-1]){ c.beginPath(); pts.forEach(([x,y],i)=>{ const X=side*half+(side<0?-x:x); i?c.lineTo(X,y):c.moveTo(X,y); }); c.closePath(); c.fillStyle="rgba(255,255,255,.08)"; c.fill(); c.stroke(); }
+      c.beginPath(); c.moveTo(-f.B/2-1,-f.A*0.16); c.quadraticCurveTo(0,-f.A*0.3,f.B/2+1,-f.A*0.16); c.stroke();
+      const W = 2*f.A+f.B+FRAME_EXTRA_MM; for (const side of [1,-1]){ c.beginPath(); c.moveTo(side*(half+f.A/2-1),-f.A*0.26); c.lineTo(side*W/2,-f.A*0.22); c.lineWidth = 4; c.stroke(); }
+      c.restore(); }
   }};
   o.step(0); return o;
 }
 
 /* ============================================================
-   OFFLINE (service worker)
+   OFFLINE
    ============================================================ */
-if ("serviceWorker" in navigator && location.protocol === "https:" ) navigator.serviceWorker.register("sw.js").catch(()=>{});
-
-window.__S = S;  // for debugging / testing
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(()=>{});
+window.__S = S;
 applyText();
 requestAnimationFrame(loop);
 </script>
