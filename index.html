@@ -1,0 +1,889 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Frame Try-On Mirror</title>
+<meta name="theme-color" content="#1C0A0E">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<style>
+/* Layout: portrait kiosk. Live mirror fills the top; a wood-trimmed panel below holds the picks. */
+:root{
+  --ink:#1C0A0E;          /* page ground, deep maroon-black */
+  --maroon:#6E1B28;       /* brand maroon */
+  --maroon-hi:#8E2738;
+  --wood:#B4804F;         /* wood accent */
+  --wood-lt:#E3C49C;
+  --wood-dk:#7C522C;
+  --paper:#F7ECDF;        /* text on dark */
+  --muted:rgba(247,236,223,.68);
+  --line:rgba(227,196,156,.22);
+  --panel:#24100F;
+  --good:#7FBF7A; --warn:#E5B35A;
+  --f-display:"Noto Serif","Georgia","Times New Roman",serif;
+  --f-body:"Roboto","Segoe UI",system-ui,-apple-system,sans-serif;
+  --wood-grain:
+    repeating-linear-gradient(93deg,rgba(60,30,10,.16) 0 1px,transparent 1px 6px),
+    repeating-linear-gradient(88deg,rgba(255,235,200,.08) 0 2px,transparent 2px 11px),
+    linear-gradient(100deg,#8C5C32,#B98653 38%,#9C6A3C 62%,#C49463);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:var(--ink);color:var(--paper);font-family:var(--f-body);overflow:hidden;
+  -webkit-user-select:none;user-select:none;touch-action:manipulation}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible{outline:3px solid var(--wood-lt);outline-offset:3px}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+
+/* Brand mark */
+.brand{display:flex;align-items:center;gap:12px}
+.brand-mark{width:46px;height:46px;border-radius:50%;background:var(--wood-grain);display:grid;place-items:center;
+  box-shadow:inset 0 0 0 2px rgba(255,240,220,.25)}
+.brand-mark svg{width:30px;height:30px}
+.brand-name{font-family:var(--f-display);font-size:22px;letter-spacing:.06em;text-transform:uppercase}
+.brand-sub{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+
+/* Welcome */
+#welcome{background:
+  radial-gradient(120% 70% at 50% 0%,rgba(142,39,56,.55),transparent 60%),
+  radial-gradient(90% 60% at 50% 100%,rgba(180,128,79,.20),transparent 70%),var(--ink);
+  align-items:center;justify-content:space-between;padding-block:max(36px,env(safe-area-inset-top,0px)) max(30px,env(safe-area-inset-bottom,0px))}
+#welcome .top{width:100%;display:flex;justify-content:center}
+.hero{display:flex;flex-direction:column;align-items:center;gap:22px;text-align:center;padding:0 32px}
+#attract{width:min(560px,86vw);height:min(220px,30vw)}
+.hero h1{font-family:var(--f-display);font-weight:500;font-size:clamp(34px,6.4vw,58px);line-height:1.08;margin:0;text-wrap:balance}
+.hero h1 .bm{display:block;font-size:.56em;color:var(--wood-lt);margin-top:10px;font-style:italic}
+.lang-q{font-size:15px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:8px}
+.lang-row{display:flex;gap:18px;flex-wrap:wrap;justify-content:center}
+.lang-btn{min-width:250px;padding:22px 30px;border-radius:16px;font-size:24px;font-weight:500;
+  background:var(--maroon);box-shadow:inset 0 0 0 2px rgba(227,196,156,.35),0 10px 30px rgba(0,0,0,.35);transition:transform .12s}
+.lang-btn:active{transform:scale(.97)}
+.lang-btn small{display:block;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--wood-lt);margin-top:4px;font-weight:400}
+.privacy{font-size:14px;color:var(--muted);text-align:center;line-height:1.5;padding:0 24px}
+.privacy b{color:var(--paper);font-weight:500}
+
+/* Mirror stage */
+#mirror{background:var(--ink)}
+.stage{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;background:#000}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%}
+.topbar{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;
+  padding:16px 18px;background:linear-gradient(rgba(28,10,14,.75),transparent);pointer-events:none}
+.topbar .brand-name{font-size:18px}.topbar .brand-mark{width:38px;height:38px}.topbar .brand-mark svg{width:24px}
+.pill{background:rgba(28,10,14,.72);border:1px solid var(--line);border-radius:999px;padding:8px 16px;font-size:15px;backdrop-filter:blur(6px)}
+.hint{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);text-align:center;max-width:90%;
+  background:rgba(28,10,14,.8);border:1px solid var(--line);border-radius:14px;padding:12px 22px;font-size:20px;backdrop-filter:blur(6px)}
+.hint small{display:block;font-size:14px;color:var(--muted);margin-top:4px}
+.progress{position:absolute;left:0;right:0;top:0;height:5px;background:rgba(255,255,255,.08)}
+.progress i{display:block;height:100%;width:0;background:var(--wood-grain);transition:width .15s}
+.tryname{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);white-space:nowrap}
+
+/* Panel */
+.panel{flex:0 0 auto;background:var(--panel);border-top:6px solid transparent;border-image:var(--wood-grain) 1;
+  padding:16px max(18px,env(safe-area-inset-right,0px)) 16px max(18px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px}
+.ph{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.ph h2{font-family:var(--f-display);font-weight:500;font-size:24px;margin:0}
+.ph .face{font-size:15px;color:var(--muted)}
+.ph .face b{color:var(--wood-lt);font-weight:500;font-size:18px}
+.picks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.pick{position:relative;text-align:left;border-radius:14px;padding:12px 12px 12px;background:rgba(255,255,255,.04);
+  border:2px solid var(--line);display:flex;flex-direction:column;gap:6px;min-width:0;transition:border-color .15s,background .15s}
+.pick.on{border-color:var(--wood);background:rgba(180,128,79,.12)}
+.rank{position:absolute;top:-2px;left:-2px;width:34px;height:34px;border-radius:12px 0 12px 0;background:var(--maroon);
+  display:grid;place-items:center;font-family:var(--f-display);font-size:18px}
+.pick:first-child .rank{background:var(--wood-grain);color:#2a1406}
+.pick canvas{width:100%;height:64px;display:block}
+.score{display:flex;align-items:baseline;gap:4px;font-variant-numeric:tabular-nums}
+.score b{font-family:var(--f-display);font-size:32px;font-weight:500;line-height:1}
+.score span{color:var(--muted);font-size:14px}
+.pname{font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.psize{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.reason{font-size:13.5px;line-height:1.35;color:var(--paper);opacity:.9}
+.fit{align-self:flex-start;font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid currentColor}
+.fit.good{color:var(--good)}.fit.warn{color:var(--warn)}
+.more-h{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.strip::-webkit-scrollbar{display:none}
+.thumb{flex:0 0 112px;border-radius:12px;border:2px solid var(--line);padding:6px 6px 8px;background:rgba(255,255,255,.03);text-align:center}
+.thumb.on{border-color:var(--wood)}
+.thumb canvas{width:100%;height:40px;display:block}
+.thumb span{font-size:12px;color:var(--muted);display:block;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.actions{display:flex;gap:12px}
+.btn{flex:1;padding:16px 18px;border-radius:14px;font-size:18px;font-weight:500;border:2px solid var(--line)}
+.btn.primary{background:var(--maroon);border-color:rgba(227,196,156,.45)}
+.btn:active{transform:scale(.98)}
+
+/* Scan panel */
+.scan-panel{gap:10px}
+.scan-panel p{margin:0;color:var(--muted);font-size:16px;line-height:1.5}
+.scan-panel h2{font-family:var(--f-display);font-weight:500;font-size:26px;margin:0}
+.steps{display:flex;gap:10px;flex-wrap:wrap}
+.steps span{font-size:14px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+
+/* Summary */
+#summary{background:var(--ink);overflow-y:auto}
+.sum{max-width:760px;width:100%;margin:0 auto;padding:28px max(22px,env(safe-area-inset-right,0px)) 28px max(22px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:20px}
+.sum-h{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.sum h1{font-family:var(--f-display);font-weight:500;font-size:34px;margin:0}
+.badge{font-size:12px;letter-spacing:.16em;text-transform:uppercase;padding:6px 12px;border-radius:999px;background:var(--wood-grain);color:#2a1406;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.cell{background:var(--panel);padding:16px 18px;min-width:0}
+.cell .k{font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.cell .v{font-family:var(--f-display);font-size:30px;margin-top:4px;font-variant-numeric:tabular-nums}
+.cell .v small{font-family:var(--f-body);font-size:15px;color:var(--muted)}
+.cell .n{font-size:13px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+.sec-h{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--wood-lt);margin:0 0 8px}
+.list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.row{display:flex;align-items:center;gap:14px;padding:12px 16px;background:var(--panel);border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row canvas{width:96px;height:36px;flex:0 0 auto}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;font-weight:500}
+.row .t span{font-size:13.5px;color:var(--muted)}
+.row .s{font-family:var(--f-display);font-size:24px;font-variant-numeric:tabular-nums}
+.row .s small{font-family:var(--f-body);font-size:13px;color:var(--muted)}
+.tried{display:flex;flex-wrap:wrap;gap:8px}
+.tried span{font-size:14px;padding:6px 12px;border-radius:999px;border:1px solid var(--line)}
+.note{font-size:14px;line-height:1.55;color:var(--muted);border-left:3px solid var(--wood);padding:4px 0 4px 14px;margin:0}
+.meta{font-size:12.5px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.ok{color:var(--good)}.no{color:var(--warn)}
+
+/* Error */
+.err{position:fixed;inset:auto 0 0 0;padding:20px 24px calc(20px + env(safe-area-inset-bottom,0px));background:var(--maroon);font-size:18px;text-align:center;z-index:20}
+.err button{margin-top:12px;padding:10px 20px;border-radius:10px;border:2px solid var(--wood-lt)}
+
+@media (max-width:620px){
+  .picks{grid-template-columns:1fr}
+  .pick{flex-direction:row;flex-wrap:wrap;align-items:center}
+  .pick canvas{width:90px;height:40px}
+  .lang-btn{min-width:200px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- Welcome / language -->
+<section id="welcome" class="screen">
+  <div class="top">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="#2a1406" stroke-width="2.4"><circle cx="9" cy="17" r="6"/><circle cx="23" cy="17" r="6"/><path d="M15 16c.7-1.2 1.3-1.2 2 0"/></svg></div>
+      <div><div class="brand-name" data-brand-name>Demo Optical</div><div class="brand-sub">Frame Try-On Mirror</div></div>
+    </div>
+  </div>
+  <div class="hero">
+    <canvas id="attract" aria-hidden="true"></canvas>
+    <h1>Find the frame that suits your face<span class="bm">Cari bingkai yang sesuai dengan muka anda</span></h1>
+    <div class="lang-q">Choose language · Pilih bahasa</div>
+    <div class="lang-row">
+      <button class="lang-btn" id="btn-en" data-lang="en">English<small>Start</small></button>
+      <button class="lang-btn" id="btn-ms" data-lang="ms">Bahasa Malaysia<small>Mula</small></button>
+    </div>
+  </div>
+  <p class="privacy"><b>Your photo is never saved or sent anywhere.</b><br>Gambar anda tidak disimpan atau dihantar ke mana-mana.</p>
+</section>
+
+<!-- Mirror: scan + try-on share the live camera stage -->
+<section id="mirror" class="screen" hidden>
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="progress" id="progress"><i></i></div>
+    <div class="topbar">
+      <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="#2a1406" stroke-width="2.4"><circle cx="9" cy="17" r="6"/><circle cx="23" cy="17" r="6"/><path d="M15 16c.7-1.2 1.3-1.2 2 0"/></svg></div><div class="brand-name" data-brand-name>Demo Optical</div></div>
+      <div class="pill" id="pill" hidden></div>
+    </div>
+    <div class="hint" id="hint" hidden></div>
+    <div class="pill tryname" id="tryname" hidden></div>
+  </div>
+
+  <div class="panel scan-panel" id="scanPanel">
+    <h2 data-t="scanTitle"></h2>
+    <p data-t="scanBody"></p>
+    <div class="steps"><span data-t="step1"></span><span data-t="step2"></span><span data-t="step3"></span></div>
+    <div class="actions"><button class="btn" id="btn-back" data-t="back"></button></div>
+  </div>
+
+  <div class="panel" id="tryPanel" hidden>
+    <div class="ph">
+      <h2 data-t="top3"></h2>
+      <div class="face"><span data-t="faceShape"></span>: <b id="faceShape"></b></div>
+    </div>
+    <div class="picks" id="picks"></div>
+    <div class="more-h" data-t="more"></div>
+    <div class="strip" id="strip"></div>
+    <div class="actions">
+      <button class="btn" id="btn-rescan" data-t="rescan"></button>
+      <button class="btn primary" id="btn-done" data-t="done"></button>
+    </div>
+  </div>
+</section>
+
+<!-- Staff summary -->
+<section id="summary" class="screen" hidden>
+  <div class="sum">
+    <div class="sum-h">
+      <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="#2a1406" stroke-width="2.4"><circle cx="9" cy="17" r="6"/><circle cx="23" cy="17" r="6"/><path d="M15 16c.7-1.2 1.3-1.2 2 0"/></svg></div><div class="brand-name" data-brand-name>Demo Optical</div></div>
+      <span class="badge" data-t="forStaff"></span>
+    </div>
+    <h1 data-t="sumTitle"></h1>
+    <div class="grid" id="sumGrid"></div>
+    <div><h3 class="sec-h" data-t="top3"></h3><div class="list" id="sumPicks"></div></div>
+    <div><h3 class="sec-h" data-t="tried"></h3><div class="tried" id="sumTried"></div></div>
+    <p class="note" data-t="estimate"></p>
+    <div class="meta" id="sumMeta"></div>
+    <div class="actions">
+      <button class="btn" id="btn-sum-back" data-t="backTry"></button>
+      <button class="btn primary" id="btn-new" data-t="newCustomer"></button>
+    </div>
+  </div>
+</section>
+
+<div class="err" id="err" hidden><div id="errMsg"></div><button id="errBtn" data-t="restart"></button></div>
+
+<script type="module">
+/* ============================================================
+   SETTINGS — edit these to customise the app
+   ============================================================ */
+const BRAND = { name: "Demo Optical" };           // shop name shown on every screen
+const SCAN_SAMPLES = 40;                          // good frames averaged during the scan (~2 s)
+const IRIS_MM = 11.7;                             // average human iris diameter, used as the ruler
+const IDLE_RESET_S = { scan: 60, tryon: 45, summary: 120 }; // auto-return to start screen
+// Face-shape thresholds (tune after trying on a few staff — see raw ratios on the staff screen)
+const SHAPE_RULES = { longMin: 1.40, heartGap: 0.12, heartJawMax: 0.80, squareJawMin: 0.86, squareLenMax: 1.32, roundLenMax: 1.26 };
+// Score weights (total is out of 10.0)
+const W_SHAPE = 0.6, W_FIT = 0.4;
+
+const MP_VER = "0.10.14";
+const MP_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}`;
+const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+const params = new URLSearchParams(location.search);
+const MOCK = params.get("mock"); // ?mock=oval|round|square|heart|long  -> test without camera
+
+/* ============================================================
+   FRAME CATALOGUE (generic demo). Add your real models here later.
+   A = lens width, B = lens height, DBL = bridge, W = total front width (mm)
+   ============================================================ */
+const FRAMES = [
+  { id:"DM-S50",  shape:"square",    A:50, B:43, DBL:19, W:136, mat:"maroon",   rim:"acetate" },
+  { id:"DM-R48",  shape:"round",     A:48, B:45, DBL:21, W:130, mat:"gold",     rim:"metal" },
+  { id:"DM-RC54", shape:"rectangle", A:54, B:35, DBL:17, W:142, mat:"wood",     rim:"acetate" },
+  { id:"DM-AV56", shape:"aviator",   A:56, B:49, DBL:15, W:140, mat:"gold",     rim:"metal" },
+  { id:"DM-CE52", shape:"cateye",    A:52, B:42, DBL:18, W:138, mat:"maroon",   rim:"acetate" },
+  { id:"DM-BR51", shape:"browline",  A:51, B:41, DBL:20, W:140, mat:"tortoise", rim:"browline" },
+  { id:"DM-O50",  shape:"oval",      A:50, B:38, DBL:19, W:134, mat:"black",    rim:"acetate" },
+  { id:"DM-HX51", shape:"hexagon",   A:51, B:45, DBL:20, W:138, mat:"gold",     rim:"metal" },
+  { id:"DM-PT49", shape:"panto",     A:49, B:44, DBL:21, W:134, mat:"wood",     rim:"acetate" },
+  { id:"DM-OS55", shape:"oversized", A:55, B:50, DBL:17, W:146, mat:"crystal",  rim:"acetate" },
+  { id:"DM-R51",  shape:"round",     A:51, B:47, DBL:20, W:138, mat:"tortoise", rim:"acetate" },
+  { id:"DM-S54",  shape:"square",    A:54, B:46, DBL:18, W:145, mat:"black",    rim:"bold" },
+  { id:"DM-RC50", shape:"rectangle", A:50, B:31, DBL:17, W:132, mat:"gunmetal", rim:"metal" },
+];
+
+/* How well each frame shape suits each face shape (0–10), from standard optician styling guidance */
+const SHAPE_SCORE = {
+  round:  { square:9.5, rectangle:9.3, hexagon:8.8, browline:8.6, cateye:8.0, aviator:7.2, oversized:7.0, panto:5.5, oval:5.0, round:3.8 },
+  square: { round:9.5, oval:9.3, panto:8.8, aviator:8.6, cateye:8.2, browline:7.0, oversized:6.8, hexagon:6.0, rectangle:4.2, square:3.8 },
+  oval:   { square:9.2, rectangle:9.0, aviator:9.0, browline:8.8, cateye:8.6, hexagon:8.6, panto:8.4, round:8.2, oversized:8.0, oval:7.8 },
+  heart:  { oval:9.3, round:9.0, panto:8.8, aviator:8.4, rectangle:7.6, hexagon:7.4, square:7.0, oversized:6.2, cateye:5.4, browline:4.8 },
+  long:   { oversized:9.4, square:8.8, aviator:8.8, round:8.4, panto:8.2, hexagon:8.0, browline:7.8, cateye:7.2, oval:7.0, rectangle:5.0 },
+};
+
+/* ============================================================
+   TEXT (English / Bahasa Malaysia)
+   ============================================================ */
+const T = {
+ en:{
+  scanTitle:"Let's read your face", scanBody:"Stand about an arm's length from the screen and look straight ahead. It takes about 3 seconds.",
+  step1:"1 · Look straight", step2:"2 · Hold still", step3:"3 · See your top 3", back:"Back",
+  loadingAI:"Preparing the AI…", looking:"Looking for your face…", closer:"Move a little closer", farther:"Move back a little",
+  straight:"Keep your head straight", hold:"Hold still…", glasses:"Tip: take off your glasses for a more accurate reading",
+  centre:"Move to the centre of the screen", done1:"Done!",
+  top3:"Your top 3 picks", faceShape:"Face shape", more:"More frames to try", rescan:"Scan again", done:"Done · Show staff",
+  fitGood:"Good fit", fitWide:"A little wide", fitNarrow:"A little narrow",
+  forStaff:"For staff", sumTitle:"Customer summary", tried:"Frames tried", backTry:"Back to try-on", newCustomer:"New customer",
+  kShape:"Face shape", kWidth:"Face width", kPD:"Pupil distance (PD)", kFrameW:"Suggested frame width", kLens:"Suggested size", kTemple:"Temple width", kScore:"Score", max:"max", scoreHow:(a,b)=>`${a}% face-shape match · ${b}% size fit`,
+  estimate:"Measurements are camera estimates (±3–4 mm). Confirm PD with a pupillometer or PD ruler before ordering lenses.",
+  noneTried:"Only the top pick was shown", offlineOk:"Offline ready", offlineNo:"Not yet saved for offline", restart:"Start again",
+  errCam:"The camera is blocked. Staff: allow camera access for this app in Chrome settings, then start again.",
+  errAI:"The face AI could not load. Connect the tablet to the internet once, then start again.",
+  fitNum:(w,f)=>`Frame ${w} mm · your face ${f} mm`,
+  shapes:{ oval:"Oval", round:"Round", square:"Square", heart:"Heart", long:"Long" },
+  frames:{ round:"Round", oval:"Oval", square:"Square", rectangle:"Rectangle", browline:"Browline", cateye:"Cat-eye", aviator:"Aviator", hexagon:"Hexagon", oversized:"Oversized", panto:"Panto" },
+  mats:{ gold:"Gold metal", maroon:"Maroon acetate", wood:"Wood-grain acetate", tortoise:"Tortoise", black:"Black", crystal:"Crystal clear", gunmetal:"Gunmetal" },
+  generic:"A good all-round match for your face shape.",
+  reasons:{
+   round:{ square:"Straight lines add structure to soft, round features.", rectangle:"A wide, angular shape makes the face look longer and slimmer.", hexagon:"Geometric angles add sharp definition to soft curves.", browline:"A strong top line lifts the eyes and balances full cheeks.", cateye:"Upswept corners lift the face and add angles.", aviator:"The tapered bottom slims the lower face.", oversized:"A bigger frame balances full cheeks." },
+   square:{ round:"Soft curves balance a strong, angular jaw.", oval:"Smooth oval lines soften your angles.", panto:"A rounded bottom softens the jawline.", aviator:"Curved, tapered lenses soften a wide jaw.", cateye:"Lifted corners draw the eye up, away from the jaw.", browline:"A bold brow line balances a strong jaw.", oversized:"Large rounded lenses balance strong features." },
+   oval:{ square:"Balanced proportions like yours carry bold, angular frames well.", rectangle:"Clean lines keep your natural balance.", aviator:"A classic shape that suits balanced proportions.", browline:"A defined brow line adds character without overpowering.", cateye:"Upswept corners highlight your cheekbones.", hexagon:"Geometric lines add a modern edge.", panto:"A soft retro shape that keeps your face balanced.", round:"Round lenses give a friendly, relaxed look on an oval face." },
+   heart:{ oval:"Soft, balanced lenses even out a wider forehead.", round:"Rounded shapes soften a narrow chin.", panto:"A fuller bottom adds width to the lower face.", aviator:"The deeper bottom balances a wider forehead.", rectangle:"Light, slim lines keep the upper face calm.", hexagon:"Even geometric lines balance top and bottom.", square:"Softened corners add width at the jaw." },
+   long:{ oversized:"Deep, wide lenses make a long face look shorter.", square:"A deep, wide frame adds width to the face.", aviator:"Tall lenses fill more of the face and add balance.", round:"Round lenses add width and soften length.", panto:"A tall, rounded shape breaks up face length.", hexagon:"Bold geometric width balances face length.", browline:"A strong horizontal brow adds width." },
+  },
+ },
+ ms:{
+  scanTitle:"Mari baca bentuk muka anda", scanBody:"Berdiri kira-kira sedepa dari skrin dan pandang terus ke hadapan. Ia mengambil masa kira-kira 3 saat.",
+  step1:"1 · Pandang terus", step2:"2 · Jangan bergerak", step3:"3 · Lihat 3 pilihan terbaik", back:"Kembali",
+  loadingAI:"Menyediakan AI…", looking:"Mencari muka anda…", closer:"Dekatkan sedikit", farther:"Jauhkan sedikit",
+  straight:"Luruskan kepala anda", hold:"Jangan bergerak…", glasses:"Tip: tanggalkan cermin mata untuk bacaan lebih tepat",
+  centre:"Bergerak ke tengah skrin", done1:"Siap!",
+  top3:"3 pilihan terbaik anda", faceShape:"Bentuk muka", more:"Bingkai lain untuk dicuba", rescan:"Imbas semula", done:"Selesai · Tunjuk staf",
+  fitGood:"Saiz sesuai", fitWide:"Agak lebar", fitNarrow:"Agak sempit",
+  forStaff:"Untuk staf", sumTitle:"Ringkasan pelanggan", tried:"Bingkai yang dicuba", backTry:"Kembali cuba", newCustomer:"Pelanggan baharu",
+  kShape:"Bentuk muka", kWidth:"Lebar muka", kPD:"Jarak pupil (PD)", kFrameW:"Lebar bingkai dicadangkan", kLens:"Saiz dicadangkan", kTemple:"Lebar pelipis", kScore:"Skor", max:"maksimum", scoreHow:(a,b)=>`${a}% padanan bentuk muka · ${b}% saiz`,
+  estimate:"Ukuran ialah anggaran kamera (±3–4 mm). Sahkan PD dengan pupilometer atau pembaris PD sebelum menempah kanta.",
+  noneTried:"Hanya pilihan pertama ditunjukkan", offlineOk:"Sedia luar talian", offlineNo:"Belum disimpan untuk luar talian", restart:"Mula semula",
+  errCam:"Kamera disekat. Staf: benarkan akses kamera untuk aplikasi ini dalam tetapan Chrome, kemudian mula semula.",
+  errAI:"AI muka tidak dapat dimuatkan. Sambungkan tablet ke internet sekali, kemudian mula semula.",
+  fitNum:(w,f)=>`Bingkai ${w} mm · muka anda ${f} mm`,
+  shapes:{ oval:"Bujur", round:"Bulat", square:"Segi empat", heart:"Hati", long:"Panjang" },
+  frames:{ round:"Bulat", oval:"Bujur", square:"Segi empat sama", rectangle:"Segi empat tepat", browline:"Browline", cateye:"Mata kucing", aviator:"Aviator", hexagon:"Heksagon", oversized:"Besar", panto:"Panto" },
+  mats:{ gold:"Logam emas", maroon:"Asetat merah marun", wood:"Asetat corak kayu", tortoise:"Corak kulit penyu", black:"Hitam", crystal:"Jernih", gunmetal:"Kelabu besi" },
+  generic:"Padanan yang baik untuk bentuk muka anda.",
+  reasons:{
+   round:{ square:"Garisan lurus menambah struktur pada raut muka yang bulat.", rectangle:"Bentuk lebar bersudut membuat muka kelihatan lebih panjang dan langsing.", hexagon:"Sudut geometri memberi garisan yang lebih tegas.", browline:"Garisan atas yang tebal menaikkan fokus ke mata dan mengimbangi pipi.", cateye:"Hujung yang terangkat memberi kesan muka lebih terangkat.", aviator:"Bahagian bawah yang meruncing melangsingkan bahagian bawah muka.", oversized:"Bingkai lebih besar mengimbangi pipi yang penuh." },
+   square:{ round:"Lengkung lembut mengimbangi rahang yang tegas.", oval:"Garisan bujur yang licin melembutkan sudut muka.", panto:"Bahagian bawah yang bulat melembutkan garis rahang.", aviator:"Kanta melengkung dan meruncing melembutkan rahang yang lebar.", cateye:"Hujung terangkat menarik perhatian ke atas, jauh dari rahang.", browline:"Garisan kening yang tebal mengimbangi rahang yang kuat.", oversized:"Kanta besar yang bulat mengimbangi raut muka yang tegas." },
+   oval:{ square:"Proporsi muka yang seimbang sesuai dengan bingkai bersudut.", rectangle:"Garisan kemas mengekalkan keseimbangan semula jadi muka anda.", aviator:"Bentuk klasik yang sesuai dengan proporsi seimbang.", browline:"Garisan kening yang jelas menambah karakter tanpa berlebihan.", cateye:"Hujung terangkat menonjolkan tulang pipi anda.", hexagon:"Garisan geometri memberi sentuhan moden.", panto:"Bentuk retro yang lembut dan kekal seimbang.", round:"Kanta bulat memberi rupa mesra dan santai pada muka bujur." },
+   heart:{ oval:"Kanta yang lembut dan seimbang mengimbangi dahi yang lebih lebar.", round:"Bentuk bulat melembutkan dagu yang kecil.", panto:"Bahagian bawah yang penuh menambah lebar pada bahagian bawah muka.", aviator:"Bahagian bawah yang dalam mengimbangi dahi yang lebar.", rectangle:"Garisan nipis dan ringan mengekalkan bahagian atas muka.", hexagon:"Garisan geometri yang sekata mengimbangi atas dan bawah.", square:"Sudut yang lembut menambah lebar pada rahang." },
+   long:{ oversized:"Kanta yang dalam dan lebar menjadikan muka panjang kelihatan lebih pendek.", square:"Bingkai yang dalam dan lebar menambah kelebaran muka.", aviator:"Kanta yang tinggi mengisi lebih banyak ruang muka.", round:"Kanta bulat menambah kelebaran dan mengurangkan kesan panjang.", panto:"Bentuk tinggi dan bulat memecahkan kesan muka panjang.", hexagon:"Kelebaran geometri mengimbangi muka yang panjang.", browline:"Garisan kening mendatar menambah kelebaran." },
+  },
+ }
+};
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const S = {
+  lang:"en", screen:"welcome", landmarker:null, aiError:null, stream:null, video:null,
+  mode:"idle",            // idle | scan | tryon
+  samples:[], result:null, picks:[], current:null, tried:new Set(),
+  pose:null, lastFaceAt:0, lastActAt:0, lastVideoTime:-1, mock:null,
+};
+const t = k => T[S.lang][k];
+
+document.querySelectorAll("[data-brand-name]").forEach(e => e.textContent = BRAND.name);
+function applyText(){
+  document.documentElement.lang = S.lang === "ms" ? "ms" : "en";
+  document.querySelectorAll("[data-t]").forEach(e => { const v = t(e.dataset.t); if (typeof v === "string") e.textContent = v; });
+}
+function show(id){
+  for (const s of ["welcome","mirror","summary"]) $("#"+s).hidden = (s !== id);
+  S.screen = id; S.lastActAt = performance.now();
+}
+document.addEventListener("pointerdown", () => S.lastActAt = performance.now(), { passive:true });
+
+/* ============================================================
+   AI LOADING (MediaPipe Face Landmarker, 478 points incl. iris)
+   ============================================================ */
+let aiPromise = null;
+function loadAI(){
+  if (MOCK) return Promise.resolve(null);
+  if (!aiPromise) aiPromise = (async () => {
+    const { FaceLandmarker, FilesetResolver } = await import(`${MP_BASE}/vision_bundle.mjs`);
+    const fileset = await FilesetResolver.forVisionTasks(`${MP_BASE}/wasm`);
+    const opts = d => ({ baseOptions:{ modelAssetPath:MODEL_URL, delegate:d }, runningMode:"VIDEO", numFaces:1,
+                         outputFaceBlendshapes:false, outputFacialTransformationMatrixes:false });
+    try { S.landmarker = await FaceLandmarker.createFromOptions(fileset, opts("GPU")); }
+    catch(e){ S.landmarker = await FaceLandmarker.createFromOptions(fileset, opts("CPU")); }
+    return S.landmarker;
+  })().catch(e => { S.aiError = e; aiPromise = null; throw e; });
+  return aiPromise;
+}
+loadAI().catch(()=>{});
+
+/* ============================================================
+   CAMERA
+   ============================================================ */
+async function startCamera(){
+  if (MOCK){ S.mock = makeMock(MOCK); S.video = S.mock.canvas; return; }
+  if (S.stream) return;
+  const stream = await navigator.mediaDevices.getUserMedia({ audio:false,
+    video:{ facingMode:"user", width:{ ideal:1280 }, height:{ ideal:720 } } });
+  S.stream = stream;
+  const v = S.video || document.createElement("video");
+  v.playsInline = true; v.muted = true; v.srcObject = stream;
+  await v.play(); S.video = v;
+}
+function stopCamera(){
+  if (S.stream){ S.stream.getTracks().forEach(tr => tr.stop()); S.stream = null; }
+  if (S.video && S.video.srcObject) S.video.srcObject = null;
+}
+let wakeLock = null;
+async function keepAwake(){ try { wakeLock = await navigator.wakeLock?.request("screen"); } catch(e){} }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.screen !== "welcome") keepAwake(); });
+
+/* ============================================================
+   GEOMETRY HELPERS
+   ============================================================ */
+const cv = $("#cv"), ctx = cv.getContext("2d");
+let view = { cw:0, ch:0, s:1, ox:0, oy:0, vw:1, vh:1 };
+function fitCanvas(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const r = cv.getBoundingClientRect();
+  const w = Math.round(r.width*dpr), h = Math.round(r.height*dpr);
+  if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
+  const vw = S.video?.videoWidth || S.video?.width || 1, vh = S.video?.videoHeight || S.video?.height || 1;
+  const s = Math.max(w/vw, h/vh);
+  view = { cw:w, ch:h, s, ox:(w - vw*s)/2, oy:(h - vh*s)/2, vw, vh, dpr };
+}
+// landmark (normalised video coords) -> mirrored canvas pixel
+const P = (lm, i) => ({ x: view.cw - (view.ox + lm[i].x*view.vw*view.s), y: view.oy + lm[i].y*view.vh*view.s });
+const dist = (a,b) => Math.hypot(a.x-b.x, a.y-b.y);
+const median = arr => { const a=[...arr].sort((x,y)=>x-y), m=a.length>>1; return a.length%2 ? a[m] : (a[m-1]+a[m])/2; };
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+function measure(lm){
+  const c = { L:P(lm,234), R:P(lm,454), tL:P(lm,127), tR:P(lm,356), jL:P(lm,172), jR:P(lm,397), fL:P(lm,54), fR:P(lm,284),
+              top:P(lm,10), chin:P(lm,152), nose:P(lm,1), iL:P(lm,468), iR:P(lm,473) };
+  const irisA = Math.max(dist(P(lm,469),P(lm,471)), dist(P(lm,470),P(lm,472)));
+  const irisB = Math.max(dist(P(lm,474),P(lm,476)), dist(P(lm,475),P(lm,477)));
+  const iris = (irisA + irisB)/2;
+  const cheek = dist(c.L,c.R), temple = dist(c.tL,c.tR), jaw = dist(c.jL,c.jR), fore = dist(c.fL,c.fR), len = dist(c.top,c.chin);
+  const dl = Math.abs(c.nose.x - c.L.x), dr = Math.abs(c.R.x - c.nose.x);
+  const yawS = (dl - dr)/(dl + dr);
+  let a = c.iL, b = c.iR; if (a.x > b.x) [a,b] = [b,a];
+  const roll = Math.atan2(b.y - a.y, b.x - a.x);
+  const mmPerPx = IRIS_MM / iris;
+  return { c, iris, cheek, temple, jaw, fore, len, yawS, roll, eyeA:a, eyeB:b, mmPerPx,
+           lr: len/cheek, jr: jaw/cheek, fr: fore/cheek,
+           cheekMm: cheek*mmPerPx, templeMm: temple*mmPerPx, pdMm: dist(c.iL,c.iR)*mmPerPx };
+}
+
+function classify(lr, jr, fr){
+  const R = SHAPE_RULES;
+  if (lr >= R.longMin) return "long";
+  if (fr - jr >= R.heartGap && jr < R.heartJawMax) return "heart";
+  if (jr >= R.squareJawMin && lr < R.squareLenMax) return "square";
+  if (lr < R.roundLenMax && jr < R.squareJawMin) return "round";
+  return "oval";
+}
+
+/* ============================================================
+   SCORING (out of 10.0)
+   ============================================================ */
+function scoreFrame(f, r){
+  const shape = SHAPE_SCORE[r.shape][f.shape] ?? 6;
+  const ideal = r.idealW;
+  const wDiff = f.W - ideal;
+  const pdDiff = (f.A + f.DBL) - r.pdMm;            // frame centre distance vs PD; ~4–10 mm larger is normal
+  const fit = clamp(10 - Math.max(0, Math.abs(wDiff) - 3)*0.55 - Math.max(0, Math.abs(pdDiff - 7) - 5)*0.25, 0, 10);
+  const total = clamp(W_SHAPE*shape + W_FIT*fit, 0, 10);
+  return { f, shape, fit, total: Math.round(total*10)/10, wDiff };
+}
+function computePicks(r){
+  const scored = FRAMES.map(f => scoreFrame(f, r)).sort((a,b) => b.total - a.total);
+  const seen = new Set(), top = [];
+  for (const s of scored){ if (!seen.has(s.f.shape)){ seen.add(s.f.shape); top.push(s); } if (top.length === 3) break; }
+  return top;
+}
+function reasonFor(shape, frameShape){ return t("reasons")[shape]?.[frameShape] || t("generic"); }
+function fitLabel(wDiff){ return Math.abs(wDiff) <= 3 ? ["good", t("fitGood")] : wDiff > 0 ? ["warn", t("fitWide")] : ["warn", t("fitNarrow")]; }
+
+/* ============================================================
+   FRAME DRAWING (vector, true-to-size in mm)
+   ============================================================ */
+function superPts(A, B, nTop, nBot, N=72){
+  const pts = [];
+  for (let k=0;k<N;k++){
+    const th = k/N*Math.PI*2, c = Math.cos(th), s = Math.sin(th);
+    const n = s < 0 ? nTop : nBot;
+    pts.push([ (A/2)*Math.sign(c)*Math.abs(c)**(2/n), (B/2)*Math.sign(s)*Math.abs(s)**(2/n) ]);
+  }
+  return pts;
+}
+// lens outline for the RIGHT-hand lens; +x = outer side, +y = down
+function lensPts(f){
+  const { A, B } = f, hA = A/2, hB = B/2;
+  switch (f.shape){
+    case "round":     return superPts(A,B,2,2);
+    case "oval":      return superPts(A,B,2.1,2.1);
+    case "square":    return superPts(A,B,4.6,4.6);
+    case "rectangle": return superPts(A,B,5.2,5.2);
+    case "oversized": return superPts(A,B,3.6,3.2);
+    case "browline":  return superPts(A,B,3.6,2.5);
+    case "panto":     return superPts(A,B,4.2,2.0);
+    case "hexagon": {
+      const v = [[hA,0],[hA*.5,hB],[-hA*.5,hB],[-hA,0],[-hA*.5,-hB],[hA*.5,-hB]], pts=[];
+      for (let i=0;i<6;i++){ const p=v[i], q=v[(i+1)%6]; for (let j=0;j<10;j++){ const u=j/10; pts.push([p[0]+(q[0]-p[0])*u, p[1]+(q[1]-p[1])*u]); } }
+      return pts;
+    }
+    case "cateye": return superPts(A,B,3.2,2.4).map(([x,y]) => {
+      const u = x/hA; if (y < 0 && u > 0) y -= B*0.22*u*u*(-y/hB+0.4)/1.4;
+      if (u > 0) x += A*0.03*u; return [x, y + B*0.04];
+    });
+    case "aviator": return superPts(A,B,3.0,2.0).map(([x,y]) => {
+      const u = x/hA; if (y > 0) y *= 1 + 0.28*(1-u)/2; return [x, y - B*0.08];
+    });
+  }
+  return superPts(A,B,2,2);
+}
+const patCache = {};
+function material(c, key, ppm){
+  const g = (stops, x0,y0,x1,y1) => { const gr = c.createLinearGradient(x0,y0,x1,y1); stops.forEach(([o,col]) => gr.addColorStop(o,col)); return gr; };
+  switch (key){
+    case "gold":     return g([[0,"#F6E2B0"],[.45,"#C9A050"],[.7,"#9C7530"],[1,"#E8CB86"]], 0,-25,0,25);
+    case "gunmetal": return g([[0,"#9AA0A8"],[.5,"#50555C"],[1,"#7C828A"]], 0,-25,0,25);
+    case "maroon":   return g([[0,"#9A2E40"],[.5,"#6B1726"],[1,"#4A0E19"]], 0,-25,0,25);
+    case "black":    return g([[0,"#3A3236"],[.35,"#141012"],[1,"#0A0809"]], 0,-25,0,25);
+    case "crystal":  return "rgba(238,228,214,.62)";
+    case "wood": case "tortoise": {
+      if (!patCache[key]){
+        const tc = document.createElement("canvas"); tc.width = tc.height = 128; const x = tc.getContext("2d");
+        if (key === "wood"){
+          x.fillStyle = "#A8743F"; x.fillRect(0,0,128,128);
+          for (let i=0;i<46;i++){ x.strokeStyle = i%3 ? "rgba(90,52,20,.45)" : "rgba(230,190,130,.35)"; x.lineWidth = 1+Math.random()*2.2;
+            x.beginPath(); const y0 = i*2.9; x.moveTo(0,y0); for (let k=0;k<=128;k+=16) x.lineTo(k, y0 + Math.sin(k/22+i)*2.2); x.stroke(); }
+        } else {
+          x.fillStyle = "#6A3E1A"; x.fillRect(0,0,128,128);
+          const cols = ["rgba(30,14,4,.75)","rgba(170,110,50,.55)","rgba(210,150,70,.45)","rgba(55,28,8,.7)"];
+          for (let i=0;i<70;i++){ x.fillStyle = cols[i%4]; x.beginPath(); x.ellipse(Math.random()*128, Math.random()*128, 3+Math.random()*12, 2+Math.random()*7, Math.random()*3, 0, 7); x.fill(); }
+        }
+        patCache[key] = tc;
+      }
+      const p = c.createPattern(patCache[key], "repeat");
+      p.setTransform(new DOMMatrix().scale(0.22));   // tile ≈ 28 mm
+      return p;
+    }
+  }
+  return "#222";
+}
+function pathFrom(c, pts, ox, mirror){
+  c.beginPath();
+  pts.forEach(([x,y],i) => { const X = ox + (mirror ? -x : x); i ? c.lineTo(X,y) : c.moveTo(X,y); });
+  c.closePath();
+}
+/* Draws a frame centred at (cx,cy) in canvas px. ppm = pixels per mm. */
+function drawFrame(c, f, cx, cy, ppm, ang=0, sx=1, alpha=1){
+  const pts = lensPts(f), half = (f.A + f.DBL)/2, W = Math.max(f.W, 2*f.A + f.DBL + 6);
+  const metal = f.rim === "metal", rimW = f.rim === "bold" ? 4.6 : metal ? 1.25 : 3.4;
+  const mat = material(c, f.mat, ppm);
+  c.save(); c.globalAlpha = alpha; c.translate(cx, cy); c.rotate(ang); c.scale(ppm*sx, ppm);
+  c.lineJoin = "round"; c.lineCap = "round";
+  // lenses: faint tint + reflection
+  for (const side of [1,-1]){
+    pathFrom(c, pts, side*half, side<0);
+    c.fillStyle = "rgba(210,225,240,.07)"; c.fill();
+    c.save(); c.clip();
+    const gr = c.createLinearGradient(side*half - f.A/2, -f.B/2, side*half + f.A/4, f.B/2);
+    gr.addColorStop(0,"rgba(255,255,255,0)"); gr.addColorStop(.42,"rgba(255,255,255,.16)"); gr.addColorStop(.5,"rgba(255,255,255,0)");
+    c.fillStyle = gr; c.fillRect(side*half - f.A/2, -f.B, f.A, f.B*2); c.restore();
+  }
+  // soft shadow for depth
+  c.shadowColor = "rgba(0,0,0,.35)"; c.shadowBlur = 2.2*ppm; c.shadowOffsetY = 0.8*ppm;
+  // rims
+  c.strokeStyle = mat;
+  for (const side of [1,-1]){
+    if (f.rim === "browline"){
+      c.lineWidth = 1.1; c.strokeStyle = material(c,"gold",ppm); pathFrom(c, pts, side*half, side<0); c.stroke();
+      c.lineWidth = 5.2; c.strokeStyle = mat; c.beginPath();
+      const top = pts.filter(([x,y]) => y < -f.B*0.12).sort((p,q) => p[0]-q[0]);
+      top.forEach(([x,y],i) => { const X = side*half + (side<0 ? -x : x); i ? c.lineTo(X,y) : c.moveTo(X,y); }); c.stroke();
+    } else { c.lineWidth = rimW; pathFrom(c, pts, side*half, side<0); c.stroke(); }
+  }
+  // crystal gets a defined edge
+  if (f.mat === "crystal"){ c.shadowColor="transparent"; c.lineWidth = .5; c.strokeStyle = "rgba(90,70,60,.55)";
+    for (const side of [1,-1]){ pathFrom(c, pts, side*half, side<0); c.stroke(); } }
+  // bridge
+  c.strokeStyle = metal ? material(c,"gold",ppm) : mat;
+  if (f.mat === "gunmetal") c.strokeStyle = material(c,"gunmetal",ppm);
+  const bx = f.DBL/2 + (metal ? 0.6 : 1.4), by = -f.B*0.2;
+  c.lineWidth = metal ? 1.3 : rimW*1.15;
+  c.beginPath(); c.moveTo(-bx, by); c.quadraticCurveTo(0, by - f.B*0.16, bx, by); c.stroke();
+  if (f.shape === "aviator"){ c.lineWidth = 1.2; c.beginPath(); c.moveTo(-f.DBL/2-4, -f.B/2+0.5); c.quadraticCurveTo(0, -f.B/2-1.6, f.DBL/2+4, -f.B/2+0.5); c.stroke(); }
+  // nose pads (metal)
+  if (metal || f.rim === "browline"){ c.shadowColor = "transparent"; c.fillStyle = "rgba(235,235,230,.35)";
+    for (const side of [1,-1]){ c.beginPath(); c.ellipse(side*(f.DBL/2+0.6), f.B*0.12, 1.6, 3, side*0.25, 0, 7); c.fill(); } }
+  // end pieces / hinges
+  c.shadowColor = "rgba(0,0,0,.3)"; c.fillStyle = metal ? c.strokeStyle : mat;
+  for (const side of [1,-1]){
+    const x0 = side*(half + f.A/2 - 1), x1 = side*(W/2);
+    c.beginPath(); c.moveTo(x0, -f.B*0.36); c.lineTo(x1, -f.B*0.30); c.lineTo(x1, -f.B*0.30 + (metal?1.6:3.4)); c.lineTo(x0, -f.B*0.14); c.closePath(); c.fill();
+  }
+  c.restore();
+}
+function thumb(canvas, f, pad=1.08){
+  const dpr = Math.min(window.devicePixelRatio||1, 2), r = canvas.getBoundingClientRect();
+  canvas.width = Math.max(1, r.width*dpr); canvas.height = Math.max(1, r.height*dpr);
+  const c = canvas.getContext("2d"); c.clearRect(0,0,canvas.width,canvas.height);
+  const ppm = Math.min(canvas.width/(f.W*pad), canvas.height/((f.B+8)*pad));
+  drawFrame(c, f, canvas.width/2, canvas.height/2 + f.B*0.04*ppm, ppm);
+}
+
+/* ============================================================
+   MAIN LOOP
+   ============================================================ */
+const OVAL = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+function hint(main, sub){ const h = $("#hint"); if (!main){ h.hidden = true; return; } h.hidden = false; h.innerHTML = ""; h.append(main); if (sub){ const s = document.createElement("small"); s.textContent = sub; h.append(s); } }
+
+function detect(now){
+  if (MOCK){ S.mock.step(now); return S.mock.lm; }
+  if (!S.landmarker || !S.video || S.video.readyState < 2) return null;
+  if (S.video.currentTime === S.lastVideoTime) return S._lastLm;
+  S.lastVideoTime = S.video.currentTime;
+  const res = S.landmarker.detectForVideo(S.video, now);
+  S._lastLm = res.faceLandmarks?.[0] || null;
+  return S._lastLm;
+}
+
+function loop(now){
+  requestAnimationFrame(loop);
+  if (S.screen === "welcome"){ drawAttract(now); return; }
+  idleCheck(now);
+  if (S.screen !== "mirror" || !S.video) return;
+  fitCanvas();
+  const { cw, ch } = view;
+  ctx.save(); ctx.translate(cw, 0); ctx.scale(-1, 1);
+  ctx.drawImage(S.video, view.ox, view.oy, view.vw*view.s, view.vh*view.s);
+  ctx.restore();
+  let lm = null;
+  try { lm = detect(now); } catch(e){ lm = null; }
+  if (lm) S.lastFaceAt = now;
+  if (S.mode === "scan") scanStep(lm, now);
+  else if (S.mode === "tryon") tryStep(lm);
+}
+
+/* ---------- scan ---------- */
+function scanStep(lm, now){
+  const { cw, ch } = view;
+  // guide oval
+  ctx.save(); ctx.strokeStyle = "rgba(227,196,156,.55)"; ctx.lineWidth = 3*view.dpr; ctx.setLineDash([10*view.dpr, 10*view.dpr]);
+  ctx.beginPath(); ctx.ellipse(cw/2, ch*0.48, Math.min(cw*0.26, ch*0.2), Math.min(cw*0.26, ch*0.2)*1.32, 0, 0, 7); ctx.stroke(); ctx.restore();
+  if (!MOCK && !S.landmarker){ hint(t("loadingAI")); return; }
+  if (!lm){ hint(t("looking"), t("glasses")); return; }
+  const m = measure(lm);
+  // AI mesh feel: draw outline + eye points
+  ctx.save(); ctx.fillStyle = "rgba(227,196,156,.9)";
+  for (const i of OVAL){ const p = P(lm,i); ctx.beginPath(); ctx.arc(p.x, p.y, 2.4*view.dpr, 0, 7); ctx.fill(); }
+  for (const p of [m.c.iL, m.c.iR]){ ctx.strokeStyle = "rgba(227,196,156,.9)"; ctx.lineWidth = 2*view.dpr; ctx.beginPath(); ctx.arc(p.x, p.y, m.iris/2, 0, 7); ctx.stroke(); }
+  ctx.strokeStyle = "rgba(227,196,156,.45)"; ctx.lineWidth = 1.5*view.dpr; ctx.setLineDash([6*view.dpr,6*view.dpr]);
+  for (const [a,b] of [[m.c.L,m.c.R],[m.c.jL,m.c.jR],[m.c.fL,m.c.fR],[m.c.top,m.c.chin]]){ ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+  ctx.restore();
+
+  const rel = m.cheek / cw, mid = (m.c.L.x + m.c.R.x)/2;
+  let ok = false;
+  if (rel < 0.30) hint(t("closer"));
+  else if (rel > 0.80) hint(t("farther"));
+  else if (Math.abs(mid - cw/2) > cw*0.18) hint(t("centre"));
+  else if (Math.abs(m.yawS) > 0.12 || Math.abs(m.roll) > 0.14) hint(t("straight"));
+  else { ok = true; hint(t("hold"), t("glasses")); }
+  if (ok){ S.samples.push(m); S.lastActAt = now; }
+  $("#progress i").style.width = (S.samples.length / SCAN_SAMPLES * 100) + "%";
+  if (S.samples.length >= SCAN_SAMPLES) finishScan();
+}
+function finishScan(){
+  const sm = S.samples, med = k => median(sm.map(s => s[k]));
+  const lr = med("lr"), jr = med("jr"), fr = med("fr");
+  const r = { lr, jr, fr, cheekMm: med("cheekMm"), templeMm: med("templeMm"), pdMm: med("pdMm") };
+  r.shape = classify(lr, jr, fr);
+  r.idealW = Math.round(r.templeMm - 1);
+  r.lensA = Math.round((r.idealW - 18 - 14)/2);
+  S.result = r;
+  S.picks = computePicks(r);
+  S.tried = new Set();
+  S.pose = null;
+  hint(t("done1"));
+  setTimeout(() => { hint(null); enterTryOn(); }, 500);
+  S.mode = "done";
+}
+
+/* ---------- try-on ---------- */
+function tryStep(lm){
+  const f = S.current; if (!f) return;
+  if (!lm){ return; }
+  const m = measure(lm);
+  const ppm = m.temple / S.result.templeMm;           // canvas px per mm (stable, uses calibrated temple width)
+  const mx = (m.eyeA.x + m.eyeB.x)/2, my = (m.eyeA.y + m.eyeB.y)/2;
+  const drop = 2.5*ppm;                               // pupils sit slightly above lens centre
+  const target = { cx: mx - Math.sin(m.roll)*drop, cy: my + Math.cos(m.roll)*drop, ang: m.roll, ppm,
+                   sx: clamp(Math.cos(m.yawS*1.3), 0.78, 1) };
+  if (!S.pose) S.pose = target;
+  else for (const k in target) S.pose[k] += (target[k] - S.pose[k]) * 0.5;
+  const p = S.pose;
+  drawFrame(ctx, f, p.cx, p.cy, p.ppm, p.ang, p.sx);
+}
+function frameName(f){ return `${t("frames")[f.shape]} · ${f.id}`; }
+function frameSize(f){ return `${f.A}□${f.DBL} · ${f.W} mm`; }
+
+function enterTryOn(){
+  S.mode = "tryon";
+  $("#scanPanel").hidden = true; $("#tryPanel").hidden = false; $("#progress").hidden = true;
+  const r = S.result;
+  $("#faceShape").textContent = t("shapes")[r.shape];
+  $("#pill").hidden = false; $("#pill").textContent = `${t("faceShape")}: ${t("shapes")[r.shape]} · ${Math.round(r.cheekMm)} mm`;
+  renderPicks(); renderStrip();
+  select(S.picks[0].f);
+}
+function renderPicks(){
+  const box = $("#picks"); box.innerHTML = "";
+  S.picks.forEach((s, i) => {
+    const b = document.createElement("button"); b.className = "pick"; b.dataset.id = s.f.id;
+    const [cls, lab] = fitLabel(s.wDiff);
+    b.innerHTML = `<span class="rank">${i+1}</span><canvas></canvas>
+      <div class="score"><b>${s.total.toFixed(1)}</b><span>/ 10.0</span></div>
+      <div class="pname"></div><div class="psize"></div><div class="reason"></div><span class="fit ${cls}"></span>`;
+    b.querySelector(".pname").textContent = frameName(s.f);
+    b.querySelector(".psize").textContent = `${frameSize(s.f)} · ${t("mats")[s.f.mat]}`;
+    b.querySelector(".reason").textContent = reasonFor(S.result.shape, s.f.shape);
+    b.querySelector(".fit").textContent = lab;
+    b.onclick = () => select(s.f);
+    box.append(b);
+    requestAnimationFrame(() => thumb(b.querySelector("canvas"), s.f));
+  });
+}
+function renderStrip(){
+  const box = $("#strip"); box.innerHTML = "";
+  const topIds = new Set(S.picks.map(s => s.f.id));
+  FRAMES.filter(f => !topIds.has(f.id)).forEach(f => {
+    const b = document.createElement("button"); b.className = "thumb"; b.dataset.id = f.id;
+    b.innerHTML = `<canvas></canvas><span></span>`; b.querySelector("span").textContent = t("frames")[f.shape];
+    b.onclick = () => select(f); box.append(b);
+    requestAnimationFrame(() => thumb(b.querySelector("canvas"), f));
+  });
+}
+function select(f){
+  S.current = f; S.tried.add(f.id);
+  document.querySelectorAll(".pick,.thumb").forEach(e => e.classList.toggle("on", e.dataset.id === f.id));
+  const tn = $("#tryname"); tn.hidden = false; tn.textContent = `${frameName(f)} · ${frameSize(f)}`;
+}
+
+/* ---------- summary ---------- */
+function renderSummary(){
+  const r = S.result, g = $("#sumGrid");
+  const cell = (k, v, unit, n) => `<div class="cell"><div class="k">${k}</div><div class="v">${v}${unit ? ` <small>${unit}</small>` : ""}</div>${n ? `<div class="n">${n}</div>` : ""}</div>`;
+  g.innerHTML =
+    cell(t("kShape"), t("shapes")[r.shape], "", `L/W ${r.lr.toFixed(2)} · Jaw ${r.jr.toFixed(2)} · Fhd ${r.fr.toFixed(2)}`) +
+    cell(t("kPD"), Math.round(r.pdMm), "mm", "±3 mm") +
+    cell(t("kWidth"), Math.round(r.cheekMm), "mm", `${t("kTemple")} ${Math.round(r.templeMm)} mm`) +
+    cell(t("kFrameW"), `${r.idealW-3}–${r.idealW+3}`, "mm", "") +
+    cell(t("kLens"), `${r.lensA-1}–${r.lensA+1} □ 17–20`, "", "A □ DBL (mm)") +
+    cell(t("kScore"), "10.0", t("max"), t("scoreHow")(Math.round(W_SHAPE*100), Math.round(W_FIT*100)));
+  const pl = $("#sumPicks"); pl.innerHTML = "";
+  S.picks.forEach((s, i) => {
+    const row = document.createElement("div"); row.className = "row";
+    row.innerHTML = `<canvas></canvas><div class="t"><b></b><span></span></div><div class="s">${s.total.toFixed(1)} <small>/ 10.0</small></div>`;
+    row.querySelector("b").textContent = `${i+1}. ${frameName(s.f)}`;
+    row.querySelector("span").textContent = `${frameSize(s.f)} · ${t("mats")[s.f.mat]} · ${t("fitNum")(s.f.W, r.idealW+1)}`;
+    pl.append(row); requestAnimationFrame(() => thumb(row.querySelector("canvas"), s.f));
+  });
+  const tr = $("#sumTried"); tr.innerHTML = "";
+  const ids = [...S.tried];
+  if (ids.length <= 1){ const s = document.createElement("span"); s.textContent = t("noneTried"); tr.append(s); }
+  else ids.forEach(id => { const f = FRAMES.find(x => x.id === id); const s = document.createElement("span"); s.textContent = frameName(f); tr.append(s); });
+  const meta = $("#sumMeta"); meta.innerHTML = "";
+  const d = new Date(); const ts = document.createElement("span"); ts.textContent = d.toLocaleString(S.lang === "ms" ? "ms-MY" : "en-MY"); meta.append(ts);
+  const off = document.createElement("span"); off.textContent = "…"; meta.append(off);
+  offlineReady().then(ok => { off.className = ok ? "ok" : "no"; off.textContent = (ok ? "● " : "○ ") + t(ok ? "offlineOk" : "offlineNo"); });
+}
+async function offlineReady(){
+  try { if (!("caches" in window)) return false; const hit = await caches.match(MODEL_URL); return !!hit; } catch(e){ return false; }
+}
+
+/* ============================================================
+   FLOW
+   ============================================================ */
+async function start(lang){
+  S.lang = lang; applyText();
+  try { await document.documentElement.requestFullscreen?.({ navigationUI:"hide" }); } catch(e){}
+  keepAwake();
+  show("mirror");
+  beginScan();
+  try { await startCamera(); }
+  catch(e){ showErr(t("errCam")); return; }
+  if (!MOCK) loadAI().catch(() => showErr(t("errAI")));
+}
+function beginScan(){
+  S.mode = "scan"; S.samples = []; S.pose = null; S.current = null;
+  $("#scanPanel").hidden = false; $("#tryPanel").hidden = true; $("#progress").hidden = false;
+  $("#progress i").style.width = "0%"; $("#pill").hidden = true; $("#tryname").hidden = true; hint(null);
+  S.lastActAt = performance.now();
+}
+function reset(){
+  stopCamera(); S.mode = "idle"; S.result = null; S.picks = []; S.tried = new Set(); S.current = null;
+  $("#err").hidden = true; hint(null); show("welcome");
+}
+function showErr(msg){ $("#errMsg").textContent = msg; $("#err").hidden = false; }
+function idleCheck(now){
+  const lim = S.screen === "summary" ? IDLE_RESET_S.summary : S.mode === "tryon" ? IDLE_RESET_S.tryon : IDLE_RESET_S.scan;
+  const last = S.screen === "summary" ? S.lastActAt : Math.max(S.lastActAt, S.lastFaceAt);
+  if (now - last > lim*1000) reset();
+}
+
+$("#btn-en").onclick = () => start("en");
+$("#btn-ms").onclick = () => start("ms");
+$("#btn-back").onclick = reset;
+$("#btn-rescan").onclick = beginScan;
+$("#btn-done").onclick = () => { renderSummary(); S.mode = "idle"; show("summary"); };
+$("#btn-sum-back").onclick = () => { show("mirror"); S.mode = "tryon"; S.lastFaceAt = performance.now(); };
+$("#btn-new").onclick = reset;
+$("#errBtn").onclick = () => { reset(); };
+window.addEventListener("resize", () => { if (S.mode === "tryon"){ renderPicks(); renderStrip(); if (S.current) select(S.current); } });
+
+/* ============================================================
+   WELCOME ANIMATION — cycles through frame shapes
+   ============================================================ */
+const at = $("#attract"), actx = at.getContext("2d");
+const ATTRACT = ["DM-S50","DM-R48","DM-CE52","DM-AV56","DM-BR51","DM-HX51","DM-PT49"].map(id => FRAMES.find(f => f.id === id));
+function drawAttract(now){
+  const dpr = Math.min(window.devicePixelRatio||1, 2), r = at.getBoundingClientRect();
+  if (at.width !== Math.round(r.width*dpr)){ at.width = Math.round(r.width*dpr); at.height = Math.round(r.height*dpr); }
+  actx.clearRect(0,0,at.width,at.height);
+  const period = 2600, k = Math.floor(now/period) % ATTRACT.length, ph = (now % period)/period;
+  const f = ATTRACT[k], alpha = ph < .15 ? ph/.15 : ph > .85 ? (1-ph)/.15 : 1;
+  const ppm = Math.min(at.width/(f.W*1.15), at.height/((f.B+10)*1.2));
+  drawFrame(actx, f, at.width/2, at.height/2, ppm, Math.sin(now/1400)*0.025, 1, alpha);
+}
+
+/* ============================================================
+   TEST MODE (?mock=oval|round|square|heart|long) — synthetic face, no camera
+   ============================================================ */
+function makeMock(kind){
+  const prof = { oval:[1.32,.80,.86], round:[1.18,.80,.84], square:[1.22,.92,.92], heart:[1.30,.70,.90], long:[1.48,.82,.86] }[kind] || [1.32,.80,.86];
+  const canvas = document.createElement("canvas"); canvas.width = 720; canvas.height = 960;
+  const c = canvas.getContext("2d");
+  const mm = 2.6;                                   // px per mm in the synthetic image
+  const lm = Array.from({ length:478 }, () => ({ x:.5, y:.5, z:0 }));
+  const o = { canvas, lm, step(now){
+    const sway = Math.sin(now/900)*6, tilt = Math.sin(now/1300)*0.03;
+    const cx = 360 + sway, cyEye = 400, Wc = 140*mm, L = prof[0]*Wc, Wj = prof[1]*Wc, Wf = prof[2]*Wc, Wt = Wc*0.97;
+    const top = cyEye - L*0.40, chin = cyEye + L*0.60;
+    const set = (i, x, y) => { const dx = x-cx, dy = y-cyEye; const X = cx + dx*Math.cos(tilt) - dy*Math.sin(tilt), Y = cyEye + dx*Math.sin(tilt) + dy*Math.cos(tilt); lm[i].x = X/720; lm[i].y = Y/960; };
+    // keys along the outline (index in OVAL list -> [x offset, y])
+    const keys = { 0:[0, top], 4:[Wf/2, top + L*0.10], 7:[Wt/2, cyEye - 4], 8:[Wc/2, cyEye + L*0.08], 12:[Wj/2, chin - L*0.22], 18:[0, chin] };
+    const pos = [];
+    const kIdx = Object.keys(keys).map(Number);
+    for (let j=0;j<=18;j++){
+      let a = kIdx.filter(k=>k<=j).pop(), b = kIdx.find(k=>k>=j);
+      const u = a===b ? 0 : (j-a)/(b-a), A = keys[a], B = keys[b];
+      const e = Math.sin(u*Math.PI/2);
+      pos[j] = [A[0] + (B[0]-A[0])*(j<=8 && a<8 ? e : u*u*(3-2*u)), A[1] + (B[1]-A[1])*u];
+    }
+    OVAL.forEach((idx, j) => { if (j <= 18) set(idx, cx + pos[j][0], pos[j][1]); else { const q = pos[36-j]; set(idx, cx - q[0], q[1]); } });
+    const pd = 63*mm, ir = IRIS_MM*mm/2;
+    const eyes = [[468, cx - pd/2, [469,470,471,472]], [473, cx + pd/2, [474,475,476,477]]];
+    for (const [ci, ex, ring] of eyes){ set(ci, ex, cyEye); set(ring[0], ex+ir, cyEye); set(ring[1], ex, cyEye-ir); set(ring[2], ex-ir, cyEye); set(ring[3], ex, cyEye+ir); }
+    set(1, cx, cyEye + L*0.22); set(168, cx, cyEye - 6);
+    // paint synthetic face
+    c.fillStyle = "#3b3530"; c.fillRect(0,0,720,960);
+    const g = c.createRadialGradient(cx, cyEye, 40, cx, cyEye, Wc); g.addColorStop(0,"#d9a982"); g.addColorStop(1,"#a8775a");
+    c.fillStyle = g; c.beginPath();
+    OVAL.forEach((idx,j) => { const X = lm[idx].x*720, Y = lm[idx].y*960; j ? c.lineTo(X,Y) : c.moveTo(X,Y); }); c.closePath(); c.fill();
+    c.fillStyle = "#2a1a12"; c.beginPath(); c.ellipse(cx, top + 10, Wf*0.62, L*0.16, 0, Math.PI, 0); c.fill();
+    for (const [ci] of eyes){ const X = lm[ci].x*720, Y = lm[ci].y*960; c.fillStyle="#f4ece6"; c.beginPath(); c.ellipse(X,Y, 15*mm/2, 5.5*mm/2,0,0,7); c.fill(); c.fillStyle="#4a2f1f"; c.beginPath(); c.arc(X,Y, ir, 0, 7); c.fill(); c.fillStyle="#111"; c.beginPath(); c.arc(X,Y, ir*0.45, 0, 7); c.fill(); }
+    c.strokeStyle = "#8a5a44"; c.lineWidth = 4; c.beginPath(); c.moveTo(cx, cyEye+10); c.lineTo(cx-10, cyEye + L*0.22); c.lineTo(cx+8, cyEye+L*0.23); c.stroke();
+    c.strokeStyle = "#8c3f3f"; c.lineWidth = 6; c.beginPath(); c.arc(cx, cyEye + L*0.28, 40, 0.2*Math.PI, 0.8*Math.PI); c.stroke();
+  }};
+  o.step(0); return o;
+}
+
+/* ============================================================
+   OFFLINE (service worker)
+   ============================================================ */
+if ("serviceWorker" in navigator && location.protocol === "https:" ) navigator.serviceWorker.register("sw.js").catch(()=>{});
+
+window.__S = S;  // for debugging / testing
+applyText();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
