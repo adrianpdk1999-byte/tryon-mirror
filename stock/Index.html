@@ -169,12 +169,20 @@ const store = {
   get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } },
   set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
 };
-function call(fn, ...args){
-  return new Promise((res, rej) => {
-    const t = setTimeout(() => rej(new Error('No reply from the server after 40 seconds (' + fn + ').')), 40000);
-    google.script.run.withSuccessHandler(v => { clearTimeout(t); res(v); })
-      .withFailureHandler(e => { clearTimeout(t); rej(new Error((e && e.message) || String(e))); })[fn](...args);
-  });
+const API_URL = <?!= JSON.stringify(apiUrl) ?>;
+async function call(fn, ...args){
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 60000);
+  let r;
+  try {
+    r = await fetch(API_URL, {method:'POST', body: JSON.stringify({fn, args}), signal: ctl.signal,
+      headers: {'Content-Type':'text/plain;charset=utf-8'}, redirect: 'follow'});
+  } catch(e){
+    throw new Error(e.name==='AbortError' ? 'No reply from the server after 60 seconds.' : 'No connection to the server. Check the internet and try again.');
+  } finally { clearTimeout(t); }
+  let j;
+  try { j = await r.json(); } catch(e){ throw new Error('Unexpected reply from the server (' + r.status + ').'); }
+  if (!j.ok) throw new Error(j.error || 'Server error');
+  return j.result;
 }
 const S = {
   data:null, bySku:{}, byUpc:{}, tab:'find', q:'', onlyStock:false,

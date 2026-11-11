@@ -29,7 +29,9 @@ function doGet(e) {
     catch (err) { out = { ok: false, error: String(err && err.message || err) }; }
     return ContentService.createTextOutput(JSON.stringify(out, null, 1)).setMimeType(ContentService.MimeType.JSON);
   }
-  return HtmlService.createHtmlOutputFromFile('Index')
+  var t = HtmlService.createTemplateFromFile('Index');
+  t.apiUrl = ScriptApp.getService().getUrl();
+  return t.evaluate()
     .setTitle('Stock Finder')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -57,6 +59,29 @@ function setup() {
   ss.getSheetByName(SHEET_STOCK).getRange('E:F').setNumberFormat('@'); // keep size / UPC as text
   ss.getSheetByName(SHEET_SHOPS).getRange('C:C').setNumberFormat('@'); // PINs like 0123 stay as typed
   ss.getSheetByName(SHEET_SETTINGS).getRange('B:B').setNumberFormat('@');
+}
+
+/* ---------------- JSON API (used by the page) ----------------
+ * The page calls this with fetch() instead of google.script.run, because
+ * google.script.run hangs when the browser blocks third-party cookies
+ * (iPhone Safari, Chrome Incognito). */
+
+var API = {
+  api_getData: function () { return api_getData(); },
+  api_login: api_login, api_checkAdmin: api_checkAdmin, api_recordSales: api_recordSales,
+  api_receive: api_receive, api_transfer: api_transfer, api_importShop: api_importShop,
+  api_ocr: api_ocr, api_setPhoto: api_setPhoto, api_history: api_history
+};
+
+function doPost(e) {
+  var out;
+  try {
+    var req = JSON.parse(e.postData.contents);
+    var fn = API[req.fn];
+    if (!fn) throw new Error('Unknown action ' + req.fn);
+    out = { ok: true, result: fn.apply(null, req.args || []) };
+  } catch (err) { out = { ok: false, error: String(err && err.message || err) }; }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
 }
 
 /* ---------------- normalising ---------------- */
