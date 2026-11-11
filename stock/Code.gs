@@ -21,7 +21,14 @@ var SCAN_FOLDER = 'Stock Finder - DO scans', PHOTO_FOLDER = 'Stock Finder - phot
 
 /* ---------------- web app ---------------- */
 
-function doGet() {
+function doGet(e) {
+  // Test link: add ?test=1 to the web app URL to check the Sheet can be read.
+  if (e && e.parameter && e.parameter.test) {
+    var out;
+    try { var d = api_getData(); out = { ok: true, shops: d.shops, items: d.items.length, at: d.at }; }
+    catch (err) { out = { ok: false, error: String(err && err.message || err) }; }
+    return ContentService.createTextOutput(JSON.stringify(out, null, 1)).setMimeType(ContentService.MimeType.JSON);
+  }
   return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle('Stock Finder')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
