@@ -3,7 +3,7 @@
  * Google Apps Script backend, bound to one Google Sheet.
  *
  * Sheets (created by running setup() once):
- *   Stock    : SKU | Brand | Model | Colour | Size | UPC | Description | Photo | <one column per shop code>
+ *   Stock    : SKU | Brand | Model | Colour | Size | UPC | Description | Photo | Link | <one column per shop code>
  *   Shops    : Code | Name | PIN | Active
  *   Log      : Time | Shop | Type | SKU | Qty | Balance | Ref | Staff | Note
  *   Settings : Key | Value   (AdminPIN)
@@ -12,8 +12,8 @@
  */
 
 var SHEET_STOCK = 'Stock', SHEET_SHOPS = 'Shops', SHEET_LOG = 'Log', SHEET_SETTINGS = 'Settings';
-var FIXED = ['SKU', 'Brand', 'Model', 'Colour', 'Size', 'UPC', 'Description', 'Photo'];
-var C = { SKU: 0, BRAND: 1, MODEL: 2, COLOUR: 3, SIZE: 4, UPC: 5, DESC: 6, PHOTO: 7 };
+var FIXED = ['SKU', 'Brand', 'Model', 'Colour', 'Size', 'UPC', 'Description', 'Photo', 'Link'];
+var C = { SKU: 0, BRAND: 1, MODEL: 2, COLOUR: 3, SIZE: 4, UPC: 5, DESC: 6, PHOTO: 7, LINK: 8 };
 var LOG_HEAD = ['Time', 'Shop', 'Type', 'SKU', 'Qty', 'Balance', 'Ref', 'Staff', 'Note'];
 // Model prefix -> brand. Add more brands here later (e.g. OO: 'Oakley').
 var BRAND_PREFIX = { RB: 'Ray-Ban', RX: 'Ray-Ban', RJ: 'Ray-Ban', RY: 'Ray-Ban' };
@@ -169,7 +169,7 @@ function resolve_(st, it) {
   if (i < 0) {
     if (!key) return -1;
     var model = normModel(it.model || key.split(' ')[0]);
-    var r = [key, it.brand || brandOf(model), model, normColour(it.colour), normSize(it.size), upc, it.desc || '', ''];
+    var r = [key, it.brand || brandOf(model), model, normColour(it.colour), normSize(it.size), upc, it.desc || '', '', ''];
     while (r.length < st.head.length) r.push(0);
     st.rows.push(r);
     i = st.rows.length - 1;
@@ -213,7 +213,7 @@ function api_getData() {
     var q = {};
     shops.forEach(function (s) { q[s.code] = Number(r[st.col[s.code]]) || 0; });
     return { sku: String(r[C.SKU]), brand: String(r[C.BRAND]), model: String(r[C.MODEL]), colour: String(r[C.COLOUR]),
-      size: String(r[C.SIZE]), upc: String(r[C.UPC]), desc: String(r[C.DESC]), photo: String(r[C.PHOTO]), qty: q };
+      size: String(r[C.SIZE]), upc: String(r[C.UPC]), desc: String(r[C.DESC]), photo: String(r[C.PHOTO]), link: String(r[C.LINK] || ''), qty: q };
   });
   return { shops: shops, items: items, at: new Date().toISOString() };
 }

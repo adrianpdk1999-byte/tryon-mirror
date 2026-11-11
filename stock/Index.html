@@ -59,6 +59,8 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 .thumb{width:64px;height:48px;border-radius:8px;background:var(--chip);object-fit:cover;flex:none}
 .total{font-size:22px;font-weight:800;text-align:right;min-width:44px}
 .total small{display:block;font-size:11px;color:var(--muted);font-weight:600}
+.cardlink{display:block;margin-top:8px;font-size:13px;padding:5px 10px;text-decoration:none;text-align:center}
+a.btn{text-decoration:none}
 .sugg{position:relative}
 .sugg .list{position:absolute;left:0;right:0;top:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;z-index:4;max-height:320px;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.15)}
 .sugg .list div{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer}
@@ -109,7 +111,7 @@ h2{font-size:17px;margin:16px 0 4px}
 
 <script>
 /* Watchdog: a separate script, so it still runs if the main script fails. Shows the error on screen. */
-window.SF_VERSION = '2026-11-11d';
+window.SF_VERSION = '2026-11-11e';
 window.SF_ERRORS = [];
 window.addEventListener('error', function (e) {
   window.SF_ERRORS.push((e.message || 'Error') + (e.lineno ? ' (line ' + e.lineno + ')' : ''));
@@ -244,12 +246,19 @@ function chips(it){
     return `<span class="chip ${n>0?'has':n<0?'neg':'zero'} ${s.code===me?'me':''}">${esc(s.name)} ${n}</span>`;
   }).join('') + '</div>';
 }
+/** Exact ray-ban.com page from the Sheet's Link column, otherwise a Google search on ray-ban.com for the exact code. */
+function productLink(it){
+  if (/^https?:\/\//i.test(it.link || '')) return it.link;
+  const code = [it.model, it.colour].filter(Boolean).join(' ');
+  return 'https://www.google.com/search?q=' + encodeURIComponent('site:ray-ban.com "' + code + '"');
+}
+const linkBtn = (it, cls) => `<a class="btn alt small ${cls||''}" data-act="link" href="${esc(productLink(it))}" target="_blank" rel="noopener">Link</a>`;
 function itemCard(it){
   return `<div class="card item" data-open="${esc(it.sku)}">
     ${it.photo ? `<img class="thumb" loading="lazy" src="${esc(it.photo)}" alt="">` : ''}
     <div class="grow"><div class="sku">${esc(it.sku)}</div>
       <div class="muted">${esc([it.brand, it.desc].filter(Boolean).join(' · '))}</div>${chips(it)}</div>
-    <div class="total">${it.total}<small>total</small></div></div>`;
+    <div class="total">${it.total}<small>total</small>${linkBtn(it, 'cardlink')}</div></div>`;
 }
 function msg(k){ const m = S.msg[k]; return m ? `<div class="msg ${m.t}">${esc(m.s)}</div>` : ''; }
 
@@ -444,7 +453,8 @@ async function openItem(sku){
     ${chips(it)}
     <p class="row"><label class="btn alt small" style="margin:0">📷 ${it.photo?'Change':'Add'} photo<input type="file" accept="image/*" capture="environment" id="photo" data-sku="${esc(it.sku)}" hidden></label>
       <button class="btn alt small" data-act="toSold" data-sku="${esc(it.sku)}">+ Sold today</button>
-      <button class="btn alt small" data-act="toXfer" data-sku="${esc(it.sku)}">+ Transfer</button></p>
+      <button class="btn alt small" data-act="toXfer" data-sku="${esc(it.sku)}">+ Transfer</button>
+      ${linkBtn(it)}</p>
     <div id="photoMsg"></div>
     <h2>Recent movements</h2><div id="hist"><span class="spin"></span></div></div></div>`;
   try {
@@ -498,6 +508,7 @@ document.addEventListener('click', async e => {
   if (t.dataset.open){ openItem(t.dataset.open); return; }
   if (t.dataset.pick){ addLine(t.dataset.k, S.bySku[t.dataset.pick], 1); render(); setTimeout(() => $('#add') && $('#add').focus(), 0); return; }
   const a = t.dataset.act, k = t.dataset.k, i = +t.dataset.i;
+  if (a==='link') return; // let the browser open the link
   if (a==='close'){ if (e.target===t || t.classList.contains('x')) $('#sheet').innerHTML = ''; return; }
   if (a==='login'){
     S.staff = $('#lgStaff').value.trim(); store.set('sf_staff', S.staff);
