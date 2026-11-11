@@ -56,7 +56,8 @@ function setup() {
 
 function normModel(s) {
   s = String(s || '').toUpperCase().replace(/\s+/g, '');
-  return s.replace(/^0(?=[A-Z])/, ''); // Luxottica prints 0RB2140 -> RB2140
+  // Luxottica prints 0RB2140; some POS print ORB2140 (letter O), OR2140F or OB4105
+  return s.replace(/^[0O](?=R[BXJY]?\d|R[BXJY]R?\d)/, '').replace(/^R(?=\d)/, 'RB');
 }
 function normColour(s) { return String(s || '').toUpperCase().replace(/\s+/g, ''); }
 function normSize(s) { var m = String(s || '').match(/\d{2,3}/); return m ? m[0] : ''; }
