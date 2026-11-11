@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stock Finder</title>
+<style>
+:root{
+  --bg:#f5f5f2;--card:#fff;--ink:#1b1b1a;--muted:#6b6b66;--line:#e2e1dc;
+  --accent:#c8102e;--accent-ink:#fff;--ok:#1f7a4d;--ok-bg:#e3f3ea;--warn:#a85a00;--warn-bg:#fdf0dc;
+  --bad:#b3261e;--bad-bg:#fbe5e3;--zero:#b9b8b2;--chip:#efeee9;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121211;--card:#1d1d1b;--ink:#efeee9;--muted:#9c9b95;--line:#33332f;
+  --accent:#ff4d5e;--accent-ink:#fff;--ok:#5fd39a;--ok-bg:#16301f;--warn:#f0b35a;--warn-bg:#352711;
+  --bad:#ff8a80;--bad-bg:#3a1714;--zero:#55544f;--chip:#2a2a27;}}
+:root[data-theme="dark"]{
+  --bg:#121211;--card:#1d1d1b;--ink:#efeee9;--muted:#9c9b95;--line:#33332f;
+  --accent:#ff4d5e;--accent-ink:#fff;--ok:#5fd39a;--ok-bg:#16301f;--warn:#f0b35a;--warn-bg:#352711;
+  --bad:#ff8a80;--bad-bg:#3a1714;--zero:#55544f;--chip:#2a2a27;}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:12px 16px 8px;border-bottom:1px solid var(--line)}
+header .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+header h1{font-size:18px;margin:0}
+header .who{font-size:13px;color:var(--muted);text-align:right}
+main{padding:12px 16px 96px;max-width:760px;margin:0 auto}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav button{flex:1;border:0;background:none;color:var(--muted);padding:10px 2px 12px;font-size:12px;font-weight:600}
+nav button span{display:block;font-size:20px;line-height:1.2}
+nav button.on{color:var(--accent)}
+input,select,textarea,button{font:inherit;color:inherit}
+input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+textarea{min-height:120px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+.btn{display:inline-block;border:0;border-radius:10px;padding:12px 16px;font-weight:700;background:var(--accent);color:var(--accent-ink);cursor:pointer}
+.btn.alt{background:var(--chip);color:var(--ink)}
+.btn.small{padding:7px 10px;font-size:14px}
+.btn.wide{width:100%}
+.btn:disabled{opacity:.5}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{min-width:0}
+.grow{flex:1}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0}
+.muted{color:var(--muted);font-size:13px}
+.sku{font-weight:700;letter-spacing:.2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{background:var(--chip);border-radius:999px;padding:3px 10px;font-size:13px;font-weight:600}
+.chip.has{background:var(--ok-bg);color:var(--ok)}
+.chip.zero{color:var(--zero)}
+.chip.neg{background:var(--bad-bg);color:var(--bad)}
+.chip.me{outline:2px solid var(--accent)}
+.tag{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px;margin-left:6px}
+.tag.new{background:var(--warn-bg);color:var(--warn)}
+.tag.bad{background:var(--bad-bg);color:var(--bad)}
+.tag.ok{background:var(--ok-bg);color:var(--ok)}
+.item{display:flex;gap:12px;cursor:pointer}
+.thumb{width:64px;height:48px;border-radius:8px;background:var(--chip);object-fit:cover;flex:none}
+.total{font-size:22px;font-weight:800;text-align:right;min-width:44px}
+.total small{display:block;font-size:11px;color:var(--muted);font-weight:600}
+.sugg{position:relative}
+.sugg .list{position:absolute;left:0;right:0;top:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;z-index:4;max-height:320px;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.sugg .list div{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer}
+.sugg .list div:last-child{border-bottom:0}
+.line{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.line:last-child{border-bottom:0}
+.qty{display:flex;align-items:center;gap:4px}
+.qty button{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--card);font-weight:800}
+.qty input{width:52px;text-align:center;padding:7px 4px}
+.newfields{display:grid;grid-template-columns:1.3fr 1fr .7fr;gap:6px;margin-top:6px}
+.newfields input{padding:7px 8px;font-size:14px}
+.newfields .upc{grid-column:1/-1}
+.x{border:0;background:none;color:var(--muted);font-size:20px;padding:0 6px}
+.msg{padding:10px 12px;border-radius:10px;margin:10px 0;font-size:14px}
+.msg.ok{background:var(--ok-bg);color:var(--ok)}
+.msg.err{background:var(--bad-bg);color:var(--bad)}
+.msg.warn{background:var(--warn-bg);color:var(--warn)}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet .in{background:var(--bg);width:100%;max-width:760px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
+.sheet img.big{width:100%;max-height:300px;object-fit:contain;border-radius:12px;background:var(--chip)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.scroll{overflow-x:auto}
+h2{font-size:17px;margin:16px 0 4px}
+.seg{display:flex;background:var(--chip);border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:none;padding:8px;border-radius:8px;font-weight:600;font-size:14px}
+.seg button.on{background:var(--card)}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s 0.8s linear infinite;vertical-align:-3px}
+@keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>Stock Finder</h1>
+    <div class="who" id="who"></div>
+  </div>
+</header>
+<main id="app"><p class="muted"><span class="spin"></span> Loading stock…</p></main>
+<nav id="nav" hidden>
+  <button data-tab="find"><span>🔍</span>Find</button>
+  <button data-tab="sold"><span>🧾</span>Sold today</button>
+  <button data-tab="recv"><span>📦</span>Receive</button>
+  <button data-tab="xfer"><span>🔁</span>Transfer</button>
+  <button data-tab="more"><span>⚙️</span>More</button>
+</nav>
+<div id="sheet"></div>
+
+<script>
+/* ============ shared helpers (same rules as Code.gs) ============ */
+const BRAND_PREFIX = {RB:'Ray-Ban', RX:'Ray-Ban', RJ:'Ray-Ban', RY:'Ray-Ban'};
+const normModel = s => String(s||'').toUpperCase().replace(/\s+/g,'').replace(/^0(?=[A-Z])/,'');
+const normColour = s => String(s||'').toUpperCase().replace(/\s+/g,'');
+const normSize = s => (String(s||'').match(/\d{2,3}/)||[''])[0];
+const normUpc = s => String(s||'').replace(/\D/g,'');
+const skuKey = (m,c,z) => [normModel(m), normColour(c), normSize(z)].filter(Boolean).join(' ');
+const brandOf = m => BRAND_PREFIX[normModel(m).slice(0,2)] || '';
+
+/** Finds a frame code like 0RB2140 901 50-22 in a piece of text. */
+const CODE_RE = /(?:^|[^A-Z0-9])0?(R[BXJY]\d{4}[A-Z]{0,2})(?![A-Z0-9])(?:[ \t\-_\/]+([A-Z0-9]{1,6}(?:\/[A-Z0-9]{1,4})?))?(?:[ \t\-_\/]+(\d{2})(?!\d))?/g;
+function fixOcr(s){
+  s = String(s||'').toUpperCase();
+  // common OCR slips inside a model code: R8 -> RB, letters read in place of digits, space after prefix
+  return s.replace(/(^|[^A-Z0-9])(0?)R([B8XJY])\s?([0-9OILSZ]{4})(?=[A-Z]{0,2}(?![A-Z0-9]))/g,
+    (m,pre,z,b,d) => pre + z + 'R' + (b==='8'?'B':b) + d.replace(/O/g,'0').replace(/[IL]/g,'1').replace(/S/g,'5').replace(/Z/g,'2'));
+}
+function parseCodes(text){
+  const s = fixOcr(text), out = [];
+  CODE_RE.lastIndex = 0;
+  let m;
+  while ((m = CODE_RE.exec(s))){
+    out.push({model:m[1], colour:/^[0-9O]+$/.test(m[2]||'') ? m[2].replace(/O/g,'0') : (m[2]||''), size:m[3]||'', raw:m[0].trim()});
+  }
+  return out;
+}
+function guessQty(line, raw){
+  let s = fixOcr(line).replace(raw,' ')
+    .replace(/\b\d{8,14}\b/g,' ')                         // barcodes / long numbers
+    .replace(/\d[\d,]*[.,]\d{2}\b/g,' ')                   // prices
+    .replace(/\b\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}\b/g,' ') // dates
+    .replace(/\b\d{2}\s*[-□xX]\s*\d{2}(\s*[-□xX]\s*\d{3})?\b/g,' '); // 50-22-145
+  const near = s.match(/(\d{1,3})\s*(?:PCS?|PC|UNITS?|EA|NOS?)\b/) || s.match(/QTY\D{0,3}(\d{1,3})/);
+  if (near) return +near[1];
+  const nums = (s.match(/\b\d{1,2}\b/g)||[]).map(Number).filter(n => n>=1 && n<=30);
+  return nums.length ? nums[nums.length-1] : 1;
+}
+/** Turns OCR text of a delivery order into stock lines. Staff review everything after. */
+function parseDO(text){
+  const lines = [];
+  String(text||'').split(/\r?\n/).forEach(line => {
+    const codes = parseCodes(line);
+    const upcs = line.match(/\b\d{12,13}\b/g) || [];
+    if (codes.length){
+      codes.forEach(c => lines.push({model:normModel(c.model), colour:normColour(c.colour), size:normSize(c.size),
+        upc: codes.length===1 && upcs.length===1 ? upcs[0] : '', qty: codes.length===1 ? guessQty(line, c.raw) : 1}));
+    } else if (upcs.length){
+      upcs.forEach(u => lines.push({upc:u, qty:1, upcOnly:true}));
+    }
+  });
+  return lines;
+}
+if (typeof module !== 'undefined') module.exports = {parseCodes, parseDO, guessQty, normModel, skuKey};
+
+/* ============ app ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+};
+function call(fn, ...args){
+  return new Promise((res, rej) => google.script.run.withSuccessHandler(res)
+    .withFailureHandler(e => rej(new Error((e && e.message) || String(e))))[fn](...args));
+}
+const S = {
+  data:null, bySku:{}, byUpc:{}, tab:'find', q:'', onlyStock:false,
+  auth: store.get('sf_auth', null), staff: store.get('sf_staff', ''),
+  lines: { sold: store.get('sf_sold', []), recv: store.get('sf_recv', []), xfer: store.get('sf_xfer', []) },
+  ref: '', toShop: '', note: '', ocrText: '', msg: {}, busy: false, admin: null, imp: null
+};
+const saveLines = k => store.set('sf_' + k, S.lines[k]);
+
+async function loadData(){
+  const d = await call('api_getData');
+  S.data = d; S.bySku = {}; S.byUpc = {};
+  d.items.forEach(it => {
+    it.total = Object.values(it.qty).reduce((a,b) => a+b, 0);
+    it._h = (it.sku+' '+it.model.replace(/^R[A-Z]/,'')+' '+it.upc+' '+it.desc+' '+it.brand).toUpperCase();
+    it._c = it._h.replace(/\s+/g,'');
+    S.bySku[it.sku] = it; if (normUpc(it.upc)) S.byUpc[normUpc(it.upc)] = it;
+  });
+}
+const shopName = c => ((S.data.shops.find(s => s.code===c)||{}).name) || c;
+
+function search(q, limit){
+  const toks = String(q||'').toUpperCase().split(/\s+/).filter(Boolean)
+    .map(t => t.replace(/^0(?=R[A-Z])/,'').replace(/^(\d{2})[-xX□]\d{2}$/,'$1'));
+  let res = S.data.items;
+  if (toks.length) res = res.filter(it => toks.every(t => it._h.includes(t) || it._c.includes(t)));
+  if (S.onlyStock) res = res.filter(it => it.total > 0);
+  const me = S.auth && S.auth.shop;
+  res = res.slice().sort((a,b) => (b.total>0)-(a.total>0) || (me ? (b.qty[me]>0)-(a.qty[me]>0) : 0) || a.sku.localeCompare(b.sku));
+  return limit ? res.slice(0, limit) : res;
+}
+
+/* ---------- rendering ---------- */
+function chips(it){
+  const me = S.auth && S.auth.shop;
+  return '<div class="chips">' + S.data.shops.map(s => {
+    const n = it ? (it.qty[s.code]||0) : 0;
+    return `<span class="chip ${n>0?'has':n<0?'neg':'zero'} ${s.code===me?'me':''}">${esc(s.name)} ${n}</span>`;
+  }).join('') + '</div>';
+}
+function itemCard(it){
+  return `<div class="card item" data-open="${esc(it.sku)}">
+    ${it.photo ? `<img class="thumb" loading="lazy" src="${esc(it.photo)}" alt="">` : ''}
+    <div class="grow"><div class="sku">${esc(it.sku)}</div>
+      <div class="muted">${esc([it.brand, it.desc].filter(Boolean).join(' · '))}</div>${chips(it)}</div>
+    <div class="total">${it.total}<small>total</small></div></div>`;
+}
+function msg(k){ const m = S.msg[k]; return m ? `<div class="msg ${m.t}">${esc(m.s)}</div>` : ''; }
+
+function render(){
+  const app = $('#app');
+  $('#who').innerHTML = S.auth ? `${esc(S.auth.name)}<br><span>${esc(S.staff||'')}</span>` : '';
+  if (!S.auth){ $('#nav').hidden = true; app.innerHTML = loginView(); return; }
+  $('#nav').hidden = false;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab===S.tab));
+  app.innerHTML = ({find:findView, sold:soldView, recv:recvView, xfer:xferView, more:moreView})[S.tab]();
+  if (S.tab==='find') renderResults();
+}
+
+function loginView(){
+  return `<div class="card"><h2>Log in to your shop</h2>
+    <label>Shop</label><select id="lgShop">${S.data.shops.map(s => `<option value="${esc(s.code)}">${esc(s.name)}</option>`).join('')}</select>
+    <label>Shop PIN</label><input id="lgPin" type="password" inputmode="numeric" autocomplete="off">
+    <label>Your name</label><input id="lgStaff" value="${esc(S.staff)}" placeholder="So the record shows who did it">
+    ${msg('login')}<p><button class="btn wide" data-act="login">Log in</button></p>
+    <p class="muted">Anyone logged in can look up stock in every shop. Changes are recorded under your shop.</p></div>`;
+}
+
+function findView(){
+  return `<input id="q" type="search" placeholder="e.g. 2140 901, or scan UPC" value="${esc(S.q)}" autocomplete="off">
+    <div class="row" style="margin-top:8px;justify-content:space-between">
+      <label class="row" style="margin:0;color:var(--ink);font-size:14px"><input type="checkbox" id="only" ${S.onlyStock?'checked':''} style="width:auto"> In stock somewhere</label>
+      <button class="btn alt small" data-act="refresh">↻ Refresh</button></div>
+    <div class="muted" id="count" style="margin-top:6px"></div><div id="results"></div>`;
+}
+function renderResults(){
+  const all = search(S.q), list = all.slice(0, 80);
+  $('#count').textContent = `${all.length} item${all.length===1?'':'s'}` + (all.length>80 ? ' (showing first 80, type more to narrow)' : '') +
+    ` · updated ${new Date(S.data.at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+  $('#results').innerHTML = list.map(itemCard).join('') || '<p class="muted">Nothing found.</p>';
+}
+
+/* line editor shared by Sold / Receive / Transfer */
+function lineEditor(k, allowNew){
+  const L = S.lines[k], me = S.auth.shop;
+  const rows = L.map((l, i) => {
+    const it = l.sku && S.bySku[l.sku];
+    const have = it ? (it.qty[me]||0) : 0;
+    let tag = '';
+    if (!it) tag = '<span class="tag new">NEW ITEM</span>';
+    else if (k!=='recv' && have < l.qty) tag = `<span class="tag bad">only ${have} here</span>`;
+    const head = it ? `<div class="sku">${esc(it.sku)}${tag}</div><div class="muted">${esc(it.desc||it.upc||'')}</div>`
+      : `<div class="sku">${esc(skuKey(l.model,l.colour,l.size) || 'UPC ' + (l.upc||'?'))}${tag}</div>
+         <div class="newfields">
+           <input placeholder="Model RB2140" value="${esc(l.model||'')}" data-f="model" data-i="${i}" data-k="${k}">
+           <input placeholder="Colour 901" value="${esc(l.colour||'')}" data-f="colour" data-i="${i}" data-k="${k}">
+           <input placeholder="Size 50" value="${esc(l.size||'')}" data-f="size" data-i="${i}" data-k="${k}" inputmode="numeric">
+           <input class="upc" placeholder="UPC (optional)" value="${esc(l.upc||'')}" data-f="upc" data-i="${i}" data-k="${k}" inputmode="numeric">
+         </div>`;
+    return `<div class="line"><div>${head}</div>
+      <div class="qty"><button data-act="dec" data-i="${i}" data-k="${k}">−</button>
+        <input value="${l.qty}" inputmode="numeric" data-f="qty" data-i="${i}" data-k="${k}">
+        <button data-act="inc" data-i="${i}" data-k="${k}">+</button>
+        <button class="x" data-act="del" data-i="${i}" data-k="${k}" aria-label="Remove">×</button></div></div>`;
+  }).join('');
+  const total = L.reduce((a, l) => a + (+l.qty||0), 0);
+  return `<div class="sugg"><input id="add" data-k="${k}" placeholder="Type model or scan UPC, then pick" autocomplete="off">
+      <div class="list" id="sugg" hidden></div></div>
+    ${allowNew ? `<p style="margin:8px 0 0"><button class="btn alt small" data-act="addnew" data-k="${k}">+ Item not in list yet</button></p>` : ''}
+    <div class="card">${rows || '<p class="muted" style="margin:0">No items yet.</p>'}</div>
+    <div class="muted">${L.length} line${L.length===1?'':'s'} · ${total} frame${total===1?'':'s'}</div>`;
+}
+
+function soldView(){
+  const d = new Date().toLocaleDateString([], {weekday:'short', day:'numeric', month:'short'});
+  return `<h2>Sold today · ${esc(S.auth.name)}</h2>
+    <p class="muted">At closing, add every Ray-Ban frame sold today (${esc(d)}). The list is kept on this phone until you save it.</p>
+    ${lineEditor('sold', true)}
+    <label>Note (optional)</label><input id="note" value="${esc(S.note)}" placeholder="e.g. receipt numbers">
+    ${msg('sold')}
+    <p><button class="btn wide" data-act="saveSold" ${S.busy||!S.lines.sold.length?'disabled':''}>Save sales &amp; deduct stock</button></p>`;
+}
+
+function recvView(){
+  return `<h2>Receive new stock · ${esc(S.auth.name)}</h2>
+    <div class="card"><b>Scan the delivery order</b>
+      <p class="muted" style="margin:4px 0 8px">Take clear photos of each DO page (flat, good light) or choose a PDF. The items found are added below for you to check.</p>
+      <input type="file" id="doFile" accept="image/*,application/pdf" multiple>
+      <p style="margin:8px 0 0"><button class="btn small" data-act="ocr" ${S.busy?'disabled':''}>Read DO</button>
+      ${S.ocrText ? '<button class="btn alt small" data-act="showOcr">See scanned text</button>' : ''}</p>
+      ${msg('ocr')}</div>
+    <label>DO / invoice number</label><input id="ref" value="${esc(S.ref)}" placeholder="e.g. DO-123456">
+    <label>Items received</label>
+    ${lineEditor('recv', true)}
+    ${msg('recv')}
+    <p><button class="btn wide" data-act="saveRecv" ${S.busy||!S.lines.recv.length?'disabled':''}>Add to ${esc(S.auth.name)} stock</button></p>`;
+}
+
+function xferView(){
+  const others = S.data.shops.filter(s => s.code !== S.auth.shop);
+  return `<h2>Transfer out of ${esc(S.auth.name)}</h2>
+    <label>Send to</label><select id="toShop"><option value="">Choose shop…</option>
+      ${others.map(s => `<option value="${esc(s.code)}" ${S.toShop===s.code?'selected':''}>${esc(s.name)}</option>`).join('')}</select>
+    <label>Frames sent</label>
+    ${lineEditor('xfer', false)}
+    <label>Note (optional)</label><input id="note" value="${esc(S.note)}" placeholder="e.g. customer reserved, sent by Grab">
+    ${msg('xfer')}
+    <p><button class="btn wide" data-act="saveXfer" ${S.busy||!S.lines.xfer.length?'disabled':''}>Record transfer</button></p>
+    <p class="muted">The frames come off your shop and go onto the other shop straight away.</p>`;
+}
+
+function moreView(){
+  const imp = S.imp;
+  let adminBox;
+  if (!S.admin){
+    adminBox = `<label>Admin PIN</label><div class="row"><input id="adminPin" type="password" inputmode="numeric" class="grow">
+      <button class="btn alt" data-act="admin">Unlock</button></div>${msg('admin')}`;
+  } else {
+    adminBox = `<p class="muted">This <b>replaces</b> the chosen shop's whole stock with the counts in the file. Use it for the first load and for stock-take corrections.</p>
+      <label>Shop</label><select id="impShop">${S.data.shops.map(s => `<option value="${esc(s.code)}" ${imp&&imp.shop===s.code?'selected':''}>${esc(s.name)}</option>`).join('')}</select>
+      <label>POS stock export (Excel or CSV)</label><input type="file" id="impFile" accept=".xlsx,.xls,.csv,.txt">
+      <div id="impMap">${imp && imp.rows ? importMapView() : ''}</div>${msg('imp')}`;
+  }
+  return `<h2>${esc(S.auth.name)}</h2>
+    <label>Your name</label><input id="staff" value="${esc(S.staff)}">
+    <p class="row"><button class="btn alt" data-act="logout">Log out</button></p>
+    <h2>Admin · load stock from POS</h2><div class="card">${adminBox}</div>
+    <h2>Tips</h2>
+    <div class="card muted">• Search ignores spaces and the leading 0: "rb2140 901", "2140 901 50" and "0RB2140" all work.<br>
+      • A USB/Bluetooth barcode scanner types the UPC into the box. Press Enter to add it.<br>
+      • Tap an item for its photo and its recent movements, and to add a photo.<br>
+      • The owner can open the Google Sheet any time to check or correct counts.</div>`;
+}
+
+/* ---------- import (POS export) ---------- */
+const FIELDS = [['code','Full code (e.g. RB2140 901 50)'],['model','Model'],['colour','Colour'],['size','Size'],['upc','UPC / barcode'],['desc','Description'],['brand','Brand'],['qty','Quantity on hand']];
+const GUESS = {code:/(item|product|article|sku|stock)\s*(code|no)|^code$|^sku$/i, model:/model|style/i, colour:/col(ou)?r/i, size:/size|lens/i,
+  upc:/upc|ean|bar\s*code/i, desc:/desc|name/i, brand:/brand|supplier|make/i, qty:/qty|quantity|on\s*hand|balance|stock|soh/i};
+function importMapView(){
+  const imp = S.imp, head = imp.rows[imp.headRow] || [];
+  const opts = sel => '<option value="">—</option>' + head.map((h, i) => `<option value="${i}" ${String(sel)===String(i)?'selected':''}>${esc(h||('Column '+(i+1)))}</option>`).join('');
+  const parsed = importParse();
+  return `<p class="muted">Match the file's columns. Use either <b>Full code</b> or Model + Colour + Size.</p>
+    <label>Header row</label><input id="impHead" type="number" min="1" value="${imp.headRow+1}">
+    ${FIELDS.map(([f, l]) => `<label>${l}</label><select data-map="${f}">${opts(imp.map[f])}</select>`).join('')}
+    <label class="row" style="color:var(--ink)"><input type="checkbox" id="impRB" ${imp.rbOnly?'checked':''} style="width:auto"> Ray-Ban only (skip other brands)</label>
+    <p class="muted">${imp.rows.length - imp.headRow - 1} rows in file → <b>${parsed.lines.length} SKUs, ${parsed.units} frames</b> to load.
+      ${parsed.skipped ? parsed.skipped + ' rows skipped (no code found, other brand or qty 0).' : ''}</p>
+    <div class="scroll"><table><tr><th>SKU</th><th>UPC</th><th>Qty</th></tr>
+      ${parsed.lines.slice(0, 12).map(l => `<tr><td>${esc(skuKey(l.model,l.colour,l.size))}</td><td>${esc(l.upc)}</td><td>${l.qty}</td></tr>`).join('')}</table></div>
+    <p><button class="btn wide" data-act="doImport" ${S.busy||!parsed.lines.length?'disabled':''}>Replace ${esc(shopName($('#impShop') ? $('#impShop').value : imp.shop))} stock with this file</button></p>`;
+}
+function importParse(){
+  const imp = S.imp, m = imp.map, out = {}, res = {lines:[], units:0, skipped:0};
+  const get = (r, f) => m[f]==='' || m[f]==null ? '' : String(r[m[f]]==null ? '' : r[m[f]]).trim();
+  imp.rows.slice(imp.headRow + 1).forEach(r => {
+    let model = get(r,'model'), colour = get(r,'colour'), size = get(r,'size');
+    const code = get(r,'code');
+    if (code){ const c = parseCodes(code)[0]; if (c){ model = c.model; colour = colour || c.colour; size = size || c.size; } else if (!model) model = code; }
+    model = normModel(model);
+    const qty = Math.round(parseFloat(get(r,'qty')) || 0);
+    const isRB = brandOf(model) || /RAY/i.test(get(r,'brand'));
+    if (!model || qty <= 0 || (imp.rbOnly && !isRB)){ res.skipped++; return; }
+    const key = skuKey(model, colour, size);
+    const l = out[key] || (out[key] = {model, colour:normColour(colour), size:normSize(size), upc:normUpc(get(r,'upc')), desc:get(r,'desc'), qty:0});
+    l.qty += qty;
+  });
+  res.lines = Object.values(out); res.units = res.lines.reduce((a, l) => a + l.qty, 0);
+  return res;
+}
+function loadScript(src){ return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
+async function readImportFile(file){
+  if (!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+  const wb = XLSX.read(await file.arrayBuffer(), {type:'array'});
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:false, defval:''});
+  let headRow = rows.findIndex(r => r.filter(c => String(c).trim()).length >= 3); if (headRow < 0) headRow = 0;
+  const saved = store.get('sf_map_' + $('#impShop').value, null);
+  const map = {};
+  FIELDS.forEach(([f]) => { const i = (rows[headRow]||[]).findIndex(h => GUESS[f].test(String(h))); map[f] = i < 0 ? '' : i; });
+  if (map.code !== '' && map.code === map.model) map.model = '';
+  S.imp = {shop:$('#impShop').value, file:file.name, rows, headRow:saved ? saved.headRow : headRow, map:saved ? saved.map : map, rbOnly:true};
+}
+
+/* ---------- item detail sheet ---------- */
+async function openItem(sku){
+  const it = S.bySku[sku]; if (!it) return;
+  const box = $('#sheet');
+  box.innerHTML = `<div class="sheet" data-act="close"><div class="in">
+    <div class="row" style="justify-content:space-between"><div class="sku" style="font-size:20px">${esc(it.sku)}</div><button class="x" data-act="close">×</button></div>
+    <div class="muted">${esc([it.brand, it.desc, it.upc && 'UPC ' + it.upc].filter(Boolean).join(' · '))}</div>
+    ${it.photo ? `<p><img class="big" src="${esc(it.photo)}" alt=""></p>` : ''}
+    ${chips(it)}
+    <p class="row"><label class="btn alt small" style="margin:0">📷 ${it.photo?'Change':'Add'} photo<input type="file" accept="image/*" capture="environment" id="photo" data-sku="${esc(it.sku)}" hidden></label>
+      <button class="btn alt small" data-act="toSold" data-sku="${esc(it.sku)}">+ Sold today</button>
+      <button class="btn alt small" data-act="toXfer" data-sku="${esc(it.sku)}">+ Transfer</button></p>
+    <div id="photoMsg"></div>
+    <h2>Recent movements</h2><div id="hist"><span class="spin"></span></div></div></div>`;
+  try {
+    const h = await call('api_history', sku);
+    $('#hist').innerHTML = h.length ? `<div class="scroll"><table><tr><th>When</th><th>Shop</th><th>What</th><th>Qty</th><th>Left</th></tr>${h.map(r =>
+      `<tr><td>${esc(r.time)}</td><td>${esc(shopName(r.shop))}</td><td>${esc(r.type)}${r.ref?'<br><span class="muted">'+esc(r.ref)+'</span>':''}${r.staff?'<br><span class="muted">'+esc(r.staff)+'</span>':''}</td><td>${esc(r.qty)}</td><td>${esc(r.bal)}</td></tr>`).join('')}</table></div>` : '<p class="muted">No movements yet.</p>';
+  } catch(e){ $('#hist').innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+}
+
+/* ---------- files ---------- */
+const fileB64 = f => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = no; r.readAsDataURL(f); });
+async function imageB64(f, max, q){
+  const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = URL.createObjectURL(f); });
+  const k = Math.min(1, max / Math.max(img.width, img.height));
+  const c = document.createElement('canvas'); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', q).split(',')[1];
+}
+
+/* ---------- line helpers ---------- */
+function addLine(k, it, qty){
+  const L = S.lines[k];
+  const ex = L.find(l => l.sku && l.sku === it.sku);
+  if (ex) ex.qty += qty || 1; else L.unshift({sku:it.sku, qty:qty || 1});
+  saveLines(k);
+}
+function linesForServer(k){
+  return S.lines[k].map(l => l.sku && S.bySku[l.sku] ? {sku:l.sku, qty:+l.qty}
+    : {model:l.model, colour:l.colour, size:l.size, upc:l.upc, desc:l.desc, qty:+l.qty});
+}
+function badNewLines(k){ return S.lines[k].filter(l => !(l.sku && S.bySku[l.sku]) && !normModel(l.model)).length; }
+
+async function submit(k, fn, args, okText){
+  const bad = badNewLines(k);
+  if (bad){ S.msg[k] = {t:'err', s:`${bad} new item line(s) need at least a model, e.g. RB2140.`}; return render(); }
+  S.busy = true; S.msg[k] = null; render();
+  try {
+    const r = await call(fn, ...args);
+    S.lines[k] = []; saveLines(k); S.note = ''; if (k==='recv') { S.ref = ''; S.ocrText = ''; }
+    await loadData();
+    S.msg[k] = {t:'ok', s:okText(r)};
+  } catch(e){ S.msg[k] = {t:'err', s:'Not saved: ' + e.message}; }
+  S.busy = false; render();
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-act],[data-open],[data-tab],[data-pick]');
+  if (!t) return;
+  if (t.dataset.tab){ S.tab = t.dataset.tab; S.msg = {}; render(); window.scrollTo(0, 0); return; }
+  if (t.dataset.open){ openItem(t.dataset.open); return; }
+  if (t.dataset.pick){ addLine(t.dataset.k, S.bySku[t.dataset.pick], 1); render(); setTimeout(() => $('#add') && $('#add').focus(), 0); return; }
+  const a = t.dataset.act, k = t.dataset.k, i = +t.dataset.i;
+  if (a==='close'){ if (e.target===t || t.classList.contains('x')) $('#sheet').innerHTML = ''; return; }
+  if (a==='login'){
+    S.staff = $('#lgStaff').value.trim(); store.set('sf_staff', S.staff);
+    try { const r = await call('api_login', $('#lgShop').value, $('#lgPin').value); S.auth = {shop:r.shop, name:r.name, pin:$('#lgPin').value}; store.set('sf_auth', S.auth); S.tab = 'find'; }
+    catch(err){ S.msg.login = {t:'err', s:err.message}; }
+    render(); return;
+  }
+  if (a==='logout'){ S.auth = null; S.admin = null; store.set('sf_auth', null); render(); return; }
+  if (a==='refresh'){ t.disabled = true; await loadData(); render(); return; }
+  if (a==='inc'){ S.lines[k][i].qty = (+S.lines[k][i].qty||0) + 1; saveLines(k); render(); return; }
+  if (a==='dec'){ S.lines[k][i].qty = Math.max(1, (+S.lines[k][i].qty||1) - 1); saveLines(k); render(); return; }
+  if (a==='del'){ S.lines[k].splice(i, 1); saveLines(k); render(); return; }
+  if (a==='addnew'){ S.lines[k].unshift({model:'', colour:'', size:'', upc:'', qty:1}); saveLines(k); render(); return; }
+  if (a==='toSold' || a==='toXfer'){ const kk = a==='toSold' ? 'sold' : 'xfer'; addLine(kk, S.bySku[t.dataset.sku], 1); $('#sheet').innerHTML = ''; S.tab = kk; render(); return; }
+  if (a==='saveSold'){
+    const n = S.lines.sold.reduce((x, l) => x + (+l.qty||0), 0);
+    if (!confirm(`Deduct ${n} frame(s) sold today from ${S.auth.name}?`)) return;
+    return submit('sold', 'api_recordSales', [S.auth, linesForServer('sold'), S.staff, S.note], r => `Saved ${r.saved} line(s). Stock updated.`);
+  }
+  if (a==='saveRecv'){
+    if (!confirm(`Add these frames to ${S.auth.name} stock?`)) return;
+    return submit('recv', 'api_receive', [S.auth, linesForServer('recv'), S.ref, S.staff], r => `Added ${r.saved} line(s) to stock.`);
+  }
+  if (a==='saveXfer'){
+    if (!S.toShop){ S.msg.xfer = {t:'err', s:'Choose the shop you are sending to.'}; return render(); }
+    if (!confirm(`Move these frames from ${S.auth.name} to ${shopName(S.toShop)}?`)) return;
+    return submit('xfer', 'api_transfer', [S.auth, S.toShop, linesForServer('xfer'), S.staff, S.note], r => `Transfer ${r.ref} recorded (${r.saved} line(s)).`);
+  }
+  if (a==='ocr'){
+    const files = [...($('#doFile').files||[])];
+    if (!files.length){ S.msg.ocr = {t:'err', s:'Choose a photo or PDF of the DO first.'}; return render(); }
+    S.busy = true; S.msg.ocr = {t:'warn', s:'Reading DO… this can take up to a minute.'}; render();
+    try {
+      const payload = [];
+      for (const f of files) payload.push({name:f.name, mime: f.type==='application/pdf' ? f.type : 'image/jpeg',
+        b64: f.type==='application/pdf' ? await fileB64(f) : await imageB64(f, 2400, 0.9)});
+      const r = await call('api_ocr', S.auth, payload);
+      S.ocrText = r.text;
+      const found = parseDO(r.text);
+      let matched = 0, fresh = 0, unknownUpc = 0;
+      found.forEach(l => {
+        const key = skuKey(l.model, l.colour, l.size);
+        const it = (l.upc && S.byUpc[normUpc(l.upc)]) || S.bySku[key];
+        if (it){ addLine('recv', it, l.qty); matched++; }
+        else if (l.upcOnly){ unknownUpc++; S.lines.recv.push({model:'', colour:'', size:'', upc:l.upc, qty:l.qty}); }
+        else { fresh++; S.lines.recv.push({model:l.model, colour:l.colour, size:l.size, upc:l.upc, qty:l.qty}); }
+      });
+      saveLines('recv');
+      S.msg.ocr = found.length ? {t:'warn', s:`Found ${found.length} line(s): ${matched} known, ${fresh} new item(s)${unknownUpc?`, ${unknownUpc} barcode(s) only`:''}. Check every quantity against the paper DO before saving.`}
+        : {t:'err', s:'No frame codes found. Try a sharper, flatter photo, or add the items by hand.'};
+    } catch(err){ S.msg.ocr = {t:'err', s:'Could not read DO: ' + err.message}; }
+    S.busy = false; render(); return;
+  }
+  if (a==='showOcr'){ $('#sheet').innerHTML = `<div class="sheet" data-act="close"><div class="in"><div class="row" style="justify-content:space-between"><b>Scanned text</b><button class="x" data-act="close">×</button></div><textarea readonly style="min-height:60vh">${esc(S.ocrText)}</textarea></div></div>`; return; }
+  if (a==='admin'){
+    try { await call('api_checkAdmin', $('#adminPin').value); S.admin = $('#adminPin').value; }
+    catch(err){ S.msg.admin = {t:'err', s:err.message}; }
+    render(); return;
+  }
+  if (a==='doImport'){
+    const shop = $('#impShop').value, p = importParse();
+    if (!confirm(`REPLACE all ${shopName(shop)} stock with ${p.units} frames (${p.lines.length} SKUs) from ${S.imp.file}?`)) return;
+    store.set('sf_map_' + shop, {headRow:S.imp.headRow, map:S.imp.map});
+    S.busy = true; render();
+    try { const r = await call('api_importShop', S.admin, shop, p.lines, S.imp.file); await loadData(); S.imp = null; S.msg.imp = {t:'ok', s:`${shopName(shop)}: loaded ${r.saved} SKUs.`}; }
+    catch(err){ S.msg.imp = {t:'err', s:'Import failed: ' + err.message}; }
+    S.busy = false; render(); return;
+  }
+});
+
+let suggTimer;
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.id==='q'){ S.q = t.value; renderResults(); return; }
+  if (t.id==='add'){ clearTimeout(suggTimer); suggTimer = setTimeout(() => showSugg(t), 80); return; }
+  if (t.dataset.f){
+    const l = S.lines[t.dataset.k][+t.dataset.i];
+    l[t.dataset.f] = t.dataset.f==='qty' ? Math.max(0, parseInt(t.value) || 0) : t.value;
+    saveLines(t.dataset.k); return;
+  }
+  if (t.id==='ref') S.ref = t.value;
+  if (t.id==='note') S.note = t.value;
+  if (t.id==='staff'){ S.staff = t.value; store.set('sf_staff', S.staff); }
+});
+document.addEventListener('change', async e => {
+  const t = e.target;
+  if (t.id==='only'){ S.onlyStock = t.checked; renderResults(); }
+  if (t.id==='toShop') S.toShop = t.value;
+  if (t.id==='photo' && t.files[0]){
+    $('#photoMsg').innerHTML = '<p class="muted"><span class="spin"></span> Uploading…</p>';
+    try { await call('api_setPhoto', S.auth, t.dataset.sku, await imageB64(t.files[0], 1000, 0.82), 'image/jpeg'); await loadData(); openItem(t.dataset.sku); }
+    catch(err){ $('#photoMsg').innerHTML = `<div class="msg err">${esc(err.message)}</div>`; }
+  }
+  if (t.id==='impFile' && t.files[0]){
+    try { await readImportFile(t.files[0]); S.msg.imp = null; } catch(err){ S.msg.imp = {t:'err', s:'Could not read file: ' + err.message}; }
+    render();
+  }
+  if (t.id==='impShop' && S.imp){ S.imp.shop = t.value; $('#impMap').innerHTML = importMapView(); }
+  if (t.dataset.map != null){ S.imp.map[t.dataset.map] = t.value; $('#impMap').innerHTML = importMapView(); }
+  if (t.id==='impHead'){ S.imp.headRow = Math.max(0, (+t.value||1) - 1); $('#impMap').innerHTML = importMapView(); }
+  if (t.id==='impRB'){ S.imp.rbOnly = t.checked; $('#impMap').innerHTML = importMapView(); }
+});
+document.addEventListener('keydown', e => {
+  if (e.target.id!=='add' || e.key!=='Enter') return;
+  e.preventDefault();
+  const v = e.target.value.trim(), k = e.target.dataset.k;
+  const u = normUpc(v), c = parseCodes(v)[0];
+  const it = (u.length >= 8 && S.byUpc[u]) || (c && S.bySku[skuKey(c.model, c.colour, c.size)]);
+  const res = it ? [it] : search(v, 2);
+  if (res.length===1){ addLine(k, res[0], 1); render(); setTimeout(() => $('#add').focus(), 0); }
+});
+function showSugg(inp){
+  const box = $('#sugg'), v = inp.value.trim();
+  if (!v){ box.hidden = true; return; }
+  const res = search(v, 8), me = S.auth.shop;
+  box.innerHTML = res.map(it => `<div data-pick="${esc(it.sku)}" data-k="${inp.dataset.k}"><b>${esc(it.sku)}</b>
+    <span class="muted"> · here ${it.qty[me]||0} · total ${it.total}</span></div>`).join('') || '<div class="muted">No match. Use "+ Item not in list yet".</div>';
+  box.hidden = false;
+}
+
+(async function start(){
+  try { await loadData(); }
+  catch(e){ $('#app').innerHTML = `<div class="msg err">Could not load stock: ${esc(e.message)}</div>`; return; }
+  if (S.auth && !S.data.shops.some(s => s.code===S.auth.shop)) S.auth = null;
+  render();
+})();
+</script>
+</body>
+</html>
