@@ -29,9 +29,10 @@ function doGet(e) {
     catch (err) { out = { ok: false, error: String(err && err.message || err) }; }
     return ContentService.createTextOutput(JSON.stringify(out, null, 1)).setMimeType(ContentService.MimeType.JSON);
   }
-  var t = HtmlService.createTemplateFromFile('Index');
-  t.apiUrl = ScriptApp.getService().getUrl();
-  return t.evaluate()
+  // Plain file + text replace (no template engine, so the page's JavaScript is served untouched).
+  var html = HtmlService.createHtmlOutputFromFile('Index').getContent()
+    .split('__API_URL__').join(ScriptApp.getService().getUrl());
+  return HtmlService.createHtmlOutput(html)
     .setTitle('Stock Finder')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);

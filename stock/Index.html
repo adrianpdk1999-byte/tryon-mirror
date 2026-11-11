@@ -109,7 +109,7 @@ h2{font-size:17px;margin:16px 0 4px}
 
 <script>
 /* Watchdog: a separate script, so it still runs if the main script fails. Shows the error on screen. */
-window.SF_VERSION = '2026-11-11c';
+window.SF_VERSION = '2026-11-11d';
 window.SF_ERRORS = [];
 window.addEventListener('error', function (e) {
   window.SF_ERRORS.push((e.message || 'Error') + (e.lineno ? ' (line ' + e.lineno + ')' : ''));
@@ -186,7 +186,11 @@ const store = {
   get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } },
   set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
 };
-const API_URL = <?!= JSON.stringify(apiUrl) ?>;
+// Filled in by Code.gs when served from Google; the fixed link is used when the page is hosted on GitHub Pages.
+const SERVED_URL = '__API_URL__';
+const API_URL = SERVED_URL.indexOf('__') === 0
+  ? 'https://script.google.com/macros/s/AKfycbwN55IGpSu_n-TXKvb5XsClwWh5jaTl3LJWrQ103td2D5TTbe0qOuJd4dFMIH-NRdSt/exec'
+  : SERVED_URL;
 async function call(fn, ...args){
   const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 60000);
   let r;

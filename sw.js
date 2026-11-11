@@ -42,6 +42,7 @@ self.addEventListener("fetch", e => {
   const isApp = url.origin === location.origin;
   const isAI = url.href.startsWith(MP) || url.href === MODEL;
   if (!isApp && !isAI) return;
+  if (url.pathname.includes("/stock/")) return; // Stock Finder is a separate page; never cache it as this app
 
   e.respondWith((async () => {
     if (isAI) {
