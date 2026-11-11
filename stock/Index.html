@@ -108,6 +108,23 @@ h2{font-size:17px;margin:16px 0 4px}
 <div id="sheet"></div>
 
 <script>
+/* Watchdog: a separate script, so it still runs if the main script fails. Shows the error on screen. */
+window.SF_VERSION = '2026-11-11c';
+window.SF_ERRORS = [];
+window.addEventListener('error', function (e) {
+  window.SF_ERRORS.push((e.message || 'Error') + (e.lineno ? ' (line ' + e.lineno + ')' : ''));
+});
+setTimeout(function () {
+  var app = document.getElementById('app');
+  if (!app || app.textContent.indexOf('Loading stock') < 0) return;
+  app.innerHTML = '<div class="msg err"><b>The page did not start.</b><br>' +
+    (window.SF_STARTED ? 'Started, but waiting for the server.' : 'The main script did not run.') + '<br>' +
+    (window.SF_ERRORS.length ? 'Error: ' + window.SF_ERRORS.join(' | ').replace(/</g, '&lt;') : 'No error reported.') +
+    '<br>Page version ' + window.SF_VERSION + ' · lines in page: ' + document.documentElement.outerHTML.split('\n').length + '</div>';
+}, 15000);
+</script>
+<script>
+window.SF_STARTED = true;
 /* ============ shared helpers (same rules as Code.gs) ============ */
 const BRAND_PREFIX = {RB:'Ray-Ban', RX:'Ray-Ban', RJ:'Ray-Ban', RY:'Ray-Ban'};
 const normModel = s => String(s||'').toUpperCase().replace(/\s+/g,'').replace(/^[0O](?=R[BXJY]?\d|R[BXJY]R?\d)/,'').replace(/^R(?=\d)/,'RB');
