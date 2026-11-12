@@ -114,7 +114,7 @@ h2{font-size:17px;margin:16px 0 4px}
 
 <script>
 /* Watchdog: a separate script, so it still runs if the main script fails. Shows the error on screen. */
-window.SF_VERSION = '2026-11-12a';
+window.SF_VERSION = '2026-11-12b';
 window.SF_ERRORS = [];
 window.addEventListener('error', function (e) {
   window.SF_ERRORS.push((e.message || 'Error') + (e.lineno ? ' (line ' + e.lineno + ')' : ''));
@@ -131,8 +131,8 @@ setTimeout(function () {
 <script>
 window.SF_STARTED = true;
 /* ============ shared helpers (same rules as Code.gs) ============ */
-const BRAND_PREFIX = {RB:'Ray-Ban', RX:'Ray-Ban', RJ:'Ray-Ban', RY:'Ray-Ban'};
-const normModel = s => String(s||'').toUpperCase().replace(/\s+/g,'').replace(/^[0O](?=R[BXJY]?\d|R[BXJY]R?\d)/,'').replace(/^R(?=\d)/,'RB');
+const BRAND_PREFIX = {RB:'Ray-Ban', RX:'Ray-Ban', RJ:'Ray-Ban', RY:'Ray-Ban', RW:'Ray-Ban', OO:'Oakley', OX:'Oakley', OJ:'Oakley', OY:'Oakley', OW:'Oakley'};
+const normModel = s => String(s||'').toUpperCase().replace(/\s+/g,'').replace(/^[0O](?=R[BXJYW]?\d|R[BXJY]R?\d)/,'').replace(/^0(?=O[OXJYW]\d)/,'').replace(/^R(?=\d)/,'RB');
 const normColour = s => String(s||'').toUpperCase().replace(/\s+/g,'');
 const normSize = s => (String(s||'').match(/\d{2,3}/)||[''])[0];
 const normUpc = s => String(s||'').replace(/\D/g,'');
@@ -140,7 +140,7 @@ const skuKey = (m,c,z) => [normModel(m), normColour(c), normSize(z)].filter(Bool
 const brandOf = m => BRAND_PREFIX[normModel(m).slice(0,2)] || '';
 
 /** Finds a frame code like 0RB2140 901 50-22 in a piece of text. */
-const CODE_RE = /(?:^|[^A-Z0-9])[0O]?(R[BXJY]\d{4}[A-Z]{0,2})(?![A-Z0-9])(?:[ \t\-_\/]+([A-Z0-9]{1,6}(?:\/[A-Z0-9]{1,4})?))?(?:[ \t\-_\/]+(\d{2})(?!\d))?/g;
+const CODE_RE = /(?:^|[^A-Z0-9])[0O]?(R[BXJYW]\d{4}|O[OXJYW]\d{4}[A-Z]{0,2})(?![A-Z0-9])(?:[ \t\-_\/]+([A-Z0-9]{1,6}(?:\/[A-Z0-9]{1,4})?))?(?:[ \t\-_\/]+(\d{2})(?!\d))?/g;
 function fixOcr(s){
   s = String(s||'').toUpperCase();
   // common OCR slips inside a model code: R8 -> RB, letters read in place of digits, space after prefix
@@ -248,7 +248,7 @@ function xferTodo(){
 
 function search(q, limit){
   const toks = String(q||'').toUpperCase().split(/\s+/).filter(Boolean)
-    .map(t => t.replace(/^[0O](?=R[A-Z]?\d|R[A-Z]R?\d)/,'').replace(/^(\d{2})[-xX□]\d{2}$/,'$1'));
+    .map(t => t.replace(/^[0O](?=R[A-Z]?\d|R[A-Z]R?\d)/,'').replace(/^0(?=O[A-Z]\d)/,'').replace(/^(\d{2})[-xX□]\d{2}$/,'$1'));
   let res = S.data.items;
   if (toks.length) res = res.filter(it => toks.every(t => it._h.includes(t) || it._c.includes(t)));
   if (S.onlyStock) res = res.filter(it => it.total > 0);
@@ -269,7 +269,8 @@ function chips(it){
 function productLink(it){
   if (/^https?:\/\//i.test(it.link || '')) return it.link;
   const code = [it.model, it.colour].filter(Boolean).join(' ');
-  return 'https://www.google.com/search?q=' + encodeURIComponent('site:ray-ban.com "' + code + '"');
+  const site = it.brand==='Oakley' ? 'oakley.com' : 'ray-ban.com';
+  return 'https://www.google.com/search?q=' + encodeURIComponent('site:' + site + ' "' + code + '"');
 }
 const linkBtn = (it, cls) => `<a class="btn alt small ${cls||''}" data-act="link" href="${esc(productLink(it))}" target="_blank" rel="noopener">Link</a>`;
 function itemCard(it){
@@ -349,7 +350,7 @@ function lineEditor(k, allowNew){
 function soldView(){
   const d = new Date().toLocaleDateString([], {weekday:'short', day:'numeric', month:'short'});
   return `<h2>Sold today · ${esc(shopName(S.shop))}</h2>
-    <p class="muted">At closing, add every Ray-Ban frame sold today (${esc(d)}). The list is kept on this phone until you save it.</p>
+    <p class="muted">At closing, add every Ray-Ban and Oakley frame sold today (${esc(d)}). The list is kept on this phone until you save it.</p>
     ${lineEditor('sold', true)}
     <label>Note (optional)</label><input id="note" value="${esc(S.note)}" placeholder="e.g. receipt numbers">
     ${msg('sold')}
@@ -440,7 +441,7 @@ function importMapView(){
     <label>Header row</label><input id="impHead" type="number" min="1" value="${imp.headRow+1}">
     ${FIELDS.map(([f, l]) => `<label>${l}</label><select data-map="${f}">${opts(imp.map[f])}</select>`).join('')}
     <label class="row" style="color:var(--ink)"><input type="checkbox" id="impSF" ${imp.sizeFirst?'checked':''} style="width:auto"> Full code has size before colour (e.g. ORB2140F 52 901)</label>
-    <label class="row" style="color:var(--ink)"><input type="checkbox" id="impRB" ${imp.rbOnly?'checked':''} style="width:auto"> Ray-Ban only (skip other brands)</label>
+    <label class="row" style="color:var(--ink)"><input type="checkbox" id="impRB" ${imp.rbOnly?'checked':''} style="width:auto"> Ray-Ban &amp; Oakley only (skip other brands)</label>
     <p class="muted">${imp.rows.length - imp.headRow - 1} rows in file → <b>${parsed.lines.length} SKUs, ${parsed.units} frames</b> to load.
       ${parsed.skipped ? parsed.skipped + ' rows skipped (no code found, other brand or qty 0).' : ''}</p>
     <div class="scroll"><table><tr><th>SKU</th><th>UPC</th><th>Qty</th></tr>
@@ -461,7 +462,7 @@ function importParse(){
     } else if (code){ const c = parseCodes(code)[0]; if (c){ model = c.model; colour = colour || c.colour; size = size || c.size; } else if (!model) model = code; }
     model = normModel(model);
     const qty = Math.round(parseFloat(get(r,'qty')) || 0);
-    const isRB = brandOf(model) || /RAY|^RB$/i.test(get(r,'brand'));
+    const isRB = brandOf(model) || /RAY|OAK|^RB\.?$/i.test(get(r,'brand'));
     if (!model || qty <= 0 || (imp.rbOnly && !isRB)){ res.skipped++; return; }
     const key = skuKey(model, colour, size);
     const l = out[key] || (out[key] = {model, colour:normColour(colour), size:normSize(size), upc:normUpc(get(r,'upc')), desc:get(r,'desc'), qty:0});
