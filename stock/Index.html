@@ -53,6 +53,14 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 .chip.me{outline:2px solid var(--accent)}
 .code{display:inline-block;font-weight:800;letter-spacing:1px;color:var(--ink);background:var(--chip);border-radius:6px;padding:0 6px;margin-left:4px}
 .rsp{font-weight:800;margin-top:2px}
+.dot{display:inline-block;font-size:1.35em;line-height:0;vertical-align:-0.08em;margin:0 .32em;color:var(--accent)}
+.brands{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.brands button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;font-weight:700;font-size:14px}
+.brands button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.pager{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center;margin:14px 0}
+.pager button{min-width:40px;height:40px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-weight:700}
+.pager button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.pager button:disabled{opacity:.4}
 .coming{font-weight:600;color:var(--warn)}
 .badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-size:11px;line-height:18px;margin-left:2px}
 .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px;margin-left:6px}
@@ -115,7 +123,7 @@ h2{font-size:17px;margin:16px 0 4px}
 
 <script>
 /* Watchdog: a separate script, so it still runs if the main script fails. Shows the error on screen. */
-window.SF_VERSION = '2026-11-12c';
+window.SF_VERSION = '2026-11-12d';
 window.SF_ERRORS = [];
 window.addEventListener('error', function (e) {
   window.SF_ERRORS.push((e.message || 'Error') + (e.lineno ? ' (line ' + e.lineno + ')' : ''));
@@ -212,7 +220,7 @@ async function call(fn, ...args){
   return j.result;
 }
 const S = {
-  data:null, bySku:{}, byUpc:{}, tab:'find', q:'', onlyStock:false,
+  data:null, bySku:{}, byUpc:{}, tab:'find', q:'', onlyStock:false, brand:'', page:1,
   auth: store.get('sf_auth2', null), shop: store.get('sf_shop', ''),
   lines: { sold: store.get('sf_sold', []), recv: store.get('sf_recv', []), xfer: store.get('sf_xfer', []) },
   ref: '', toShop: '', note: '', ocrText: '', msg: {}, busy: false, imp: null
@@ -253,6 +261,7 @@ function search(q, limit){
   let res = S.data.items;
   if (toks.length) res = res.filter(it => toks.every(t => it._h.includes(t) || it._c.includes(t)));
   if (S.onlyStock) res = res.filter(it => it.total > 0);
+  if (S.brand && limit==null) res = res.filter(it => it.brand === S.brand);
   const me = S.shop;
   res = res.slice().sort((a,b) => (b.total>0)-(a.total>0) || (me ? (b.qty[me]>0)-(a.qty[me]>0) : 0) || a.sku.localeCompare(b.sku));
   return limit ? res.slice(0, limit) : res;
@@ -270,15 +279,17 @@ function chips(it){
 function productLink(it){
   if (/^https?:\/\//i.test(it.link || '')) return it.link;
   const code = [it.model, it.colour].filter(Boolean).join(' ');
-  const site = it.brand==='Oakley' ? 'oakley.com' : 'ray-ban.com';
-  return 'https://www.google.com/search?q=' + encodeURIComponent('site:' + site + ' "' + code + '"');
+  const q = it.brand==='Oakley' ? code : 'site:ray-ban.com "' + code + '"';
+  return 'https://www.google.com/search?q=' + encodeURIComponent(q);
 }
+/** Code with a big dot between model, colour and size: RB2140F • 901S • 52 */
+const dotSku = sku => String(sku||'').split(' ').filter(Boolean).map(esc).join('<span class="dot">•</span>');
 const rspTxt = it => it.rsp ? 'RSP RM' + Number(it.rsp).toLocaleString('en-MY') : '';
 const linkBtn = (it, cls) => `<a class="btn alt small ${cls||''}" data-act="link" href="${esc(productLink(it))}" target="_blank" rel="noopener">Link</a>`;
 function itemCard(it){
   return `<div class="card item" data-open="${esc(it.sku)}">
     ${it.photo ? `<img class="thumb" loading="lazy" src="${esc(it.photo)}" alt="">` : ''}
-    <div class="grow"><div class="sku">${esc(it.sku)}</div>
+    <div class="grow"><div class="sku">${dotSku(it.sku)}</div>
       <div class="muted">${esc([it.brand, it.desc].filter(Boolean).join(' · '))}${it.cost ? ` <span class="code">${esc(it.cost)}</span>` : ''}</div>
       ${it.rsp ? `<div class="rsp">${esc(rspTxt(it))}</div>` : ''}${chips(it)}</div>
     <div class="total">${it.total}<small>total</small>${linkBtn(it, 'cardlink')}</div></div>`;
@@ -310,13 +321,31 @@ function findView(){
     <div class="row" style="margin-top:8px;justify-content:space-between">
       <label class="row" style="margin:0;color:var(--ink);font-size:14px"><input type="checkbox" id="only" ${S.onlyStock?'checked':''} style="width:auto"> In stock somewhere</label>
       <button class="btn alt small" data-act="refresh">↻ Refresh</button></div>
-    <div class="muted" id="count" style="margin-top:6px"></div><div id="results"></div>`;
+    <div class="brands">${['', ...brands()].map(b => `<button data-act="brand" data-b="${esc(b)}" class="${S.brand===b?'on':''}">${esc(b||'All')}</button>`).join('')}</div>
+    <div class="muted" id="count" style="margin-top:6px"></div><div id="results"></div><div id="pager"></div>`;
 }
+const PAGE = 40;
+function brands(){ return [...new Set(S.data.items.map(it => it.brand).filter(Boolean))].sort(); }
 function renderResults(){
-  const all = search(S.q), list = all.slice(0, 80);
-  $('#count').textContent = `${all.length} item${all.length===1?'':'s'}` + (all.length>80 ? ' (showing first 80, type more to narrow)' : '') +
+  const all = search(S.q), pages = Math.max(1, Math.ceil(all.length / PAGE));
+  S.page = Math.min(Math.max(1, S.page), pages);
+  const from = (S.page - 1) * PAGE, list = all.slice(from, from + PAGE);
+  const units = all.reduce((a, it) => a + Math.max(0, it.total), 0);
+  $('#count').textContent = `${all.length} model${all.length===1?'':'s'} · ${units} frame${units===1?'':'s'}` +
+    (pages > 1 ? ` · page ${S.page} of ${pages}` : '') +
     ` · updated ${new Date(S.data.at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
   $('#results').innerHTML = list.map(itemCard).join('') || '<p class="muted">Nothing found.</p>';
+  $('#pager').innerHTML = pages > 1 ? pagerHtml(pages) : '';
+}
+/** Prev · 1 … 4 5 [6] 7 8 … 12 · Next */
+function pagerHtml(pages){
+  const p = S.page, nums = new Set([1, pages, p-2, p-1, p, p+1, p+2].filter(n => n>=1 && n<=pages));
+  let out = `<button data-act="pg" data-p="${p-1}" ${p===1?'disabled':''} aria-label="Previous page">‹</button>`, last = 0;
+  [...nums].sort((a,b) => a-b).forEach(n => {
+    if (n - last > 1) out += '<span class="muted">…</span>';
+    out += `<button data-act="pg" data-p="${n}" class="${n===p?'on':''}">${n}</button>`; last = n;
+  });
+  return `<div class="pager">${out}<button data-act="pg" data-p="${p+1}" ${p===pages?'disabled':''} aria-label="Next page">›</button></div>`;
 }
 
 /* line editor shared by Sold / Receive / Transfer */
@@ -328,7 +357,7 @@ function lineEditor(k, allowNew){
     let tag = '';
     if (!it) tag = '<span class="tag new">NEW ITEM</span>';
     else if (k!=='recv' && have < l.qty) tag = `<span class="tag bad">only ${have} here</span>`;
-    const head = it ? `<div class="sku">${esc(it.sku)}${tag}</div><div class="muted">${esc(it.desc||it.upc||'')}</div>`
+    const head = it ? `<div class="sku">${dotSku(it.sku)}${tag}</div><div class="muted">${esc(it.desc||it.upc||'')}</div>`
       : `<div class="sku">${esc(skuKey(l.model,l.colour,l.size) || 'UPC ' + (l.upc||'?'))}${tag}</div>
          <div class="newfields">
            <input placeholder="Model RB2140" value="${esc(l.model||'')}" data-f="model" data-i="${i}" data-k="${k}">
@@ -382,7 +411,7 @@ function xferCard(g, buttons){
       ${g.note ? `<div class="muted">Note: ${esc(g.note)}</div>` : ''}</div>
       <span class="tag ${g.status==='RECEIVED'?'ok':g.status==='IN TRANSIT'||g.status==='PENDING'?'new':'bad'}">${esc(g.status)}</span></div>
     ${g.lines.map(l => { const it = S.bySku[l.sku];
-      return `<div class="line"><div class="sku">${esc(l.sku)}${it && it.cost ? ` <span class="code">${esc(it.cost)}</span>` : ''}</div>
+      return `<div class="line"><div class="sku">${dotSku(l.sku)}${it && it.cost ? ` <span class="code">${esc(it.cost)}</span>` : ''}</div>
         <div>×${l.qty}${g.status==='PENDING' ? ` <span class="muted">(${esc(shopName(g.from))} has ${at(it)})</span>` : ''}</div></div>`; }).join('')}
     ${g.approvedBy ? `<div class="muted">${g.status==='REJECTED'?'Rejected':g.status==='CANCELLED'?'Cancelled':'Approved'} by ${esc(g.approvedBy)}</div>` : ''}
     ${g.receivedBy ? `<div class="muted">Received by ${esc(g.receivedBy)} · ${esc(g.receivedAt)}</div>` : ''}
@@ -492,7 +521,7 @@ async function openItem(sku){
   const it = S.bySku[sku]; if (!it) return;
   const box = $('#sheet');
   box.innerHTML = `<div class="sheet" data-act="close"><div class="in">
-    <div class="row" style="justify-content:space-between"><div class="sku" style="font-size:20px">${esc(it.sku)}</div><button class="x" data-act="close">×</button></div>
+    <div class="row" style="justify-content:space-between"><div class="sku" style="font-size:20px">${dotSku(it.sku)}</div><button class="x" data-act="close">×</button></div>
     <div class="muted">${esc([it.brand, it.desc, it.upc && 'UPC ' + it.upc].filter(Boolean).join(' · '))}${it.cost ? ` <span class="code">${esc(it.cost)}</span>` : ''}</div>
     ${it.rsp ? `<div class="rsp" style="font-size:18px">${esc(rspTxt(it))}</div>` : ''}
     ${it.photo ? `<p><img class="big" src="${esc(it.photo)}" alt=""></p>` : ''}
@@ -555,6 +584,8 @@ document.addEventListener('click', async e => {
   if (t.dataset.pick){ addLine(t.dataset.k, S.bySku[t.dataset.pick], 1); render(); setTimeout(() => $('#add') && $('#add').focus(), 0); return; }
   const a = t.dataset.act, k = t.dataset.k, i = +t.dataset.i;
   if (a==='link') return; // let the browser open the link
+  if (a==='brand'){ S.brand = t.dataset.b; S.page = 1; render(); return; }
+  if (a==='pg'){ S.page = +t.dataset.p; renderResults(); $('#q').scrollIntoView({block:'start'}); window.scrollBy(0, -70); return; }
   if (a==='close'){ if (e.target===t || t.classList.contains('x')) $('#sheet').innerHTML = ''; return; }
   if (a==='login'){
     const user = $('#lgUser').value.trim(), pass = $('#lgPass').value;
@@ -643,7 +674,7 @@ document.addEventListener('click', async e => {
 let suggTimer;
 document.addEventListener('input', e => {
   const t = e.target;
-  if (t.id==='q'){ S.q = t.value; renderResults(); return; }
+  if (t.id==='q'){ S.q = t.value; S.page = 1; renderResults(); return; }
   if (t.id==='add'){ clearTimeout(suggTimer); suggTimer = setTimeout(() => showSugg(t), 80); return; }
   if (t.dataset.f){
     const l = S.lines[t.dataset.k][+t.dataset.i];
@@ -655,7 +686,7 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', async e => {
   const t = e.target;
-  if (t.id==='only'){ S.onlyStock = t.checked; renderResults(); }
+  if (t.id==='only'){ S.onlyStock = t.checked; S.page = 1; renderResults(); }
   if (t.id==='toShop') S.toShop = t.value;
   if (t.id==='actShop'){ S.shop = t.value; store.set('sf_shop', S.shop); render(); }
   if (t.id==='photo' && t.files[0]){
@@ -687,7 +718,7 @@ function showSugg(inp){
   const box = $('#sugg'), v = inp.value.trim();
   if (!v){ box.hidden = true; return; }
   const res = search(v, 8), me = S.shop;
-  box.innerHTML = res.map(it => `<div data-pick="${esc(it.sku)}" data-k="${inp.dataset.k}"><b>${esc(it.sku)}</b>
+  box.innerHTML = res.map(it => `<div data-pick="${esc(it.sku)}" data-k="${inp.dataset.k}"><b>${dotSku(it.sku)}</b>
     <span class="muted"> · here ${it.qty[me]||0} · total ${it.total}</span></div>`).join('') || '<div class="muted">No match. Use "+ Item not in list yet".</div>';
   box.hidden = false;
 }
