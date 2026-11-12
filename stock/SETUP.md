@@ -8,6 +8,15 @@ Staff can see straight away which shop has a frame. It does not depend on any PO
 - **Transfer**: send frames to another shop. They come off this shop and go onto the other one in one step.
 - **More → Admin**: load each shop's stock from its POS export (Excel/CSV). This replaces that shop's counts.
 
+**App link:** https://adrianpdk1999-byte.github.io/tryon-mirror/stock/Index.html
+
+### Logins, cost codes, transfers
+- **Users tab**: one row per person: `UserID | Name | Shop | Password | Role (Staff/Admin) | Active (Y/N)`. Set Active to `N` to block someone. Change a password by editing the cell; that person is logged out on their next refresh.
+- **Logins tab**: every login, with time, user, shop and device.
+- **Cost code**: type the cost in RM in the Stock tab's **Cost** column. Staff see only the letters (RODENSTICK = 1234567890, whole ringgit: 384.48 → 384 → DIE). The cost itself never reaches the app.
+- **Transfers**: a shop requests → the Admin approves or rejects in the Transfer tab (stock leaves the sending shop on approval and shows "+n coming") → the receiving shop taps **Received** (stock is added). Every step is in the **Transfers** and **Log** tabs.
+- **Admin** users can switch the shop they work as (More tab) and load POS stock exports.
+
 All data lives in **one Google Sheet** that you own. You can open it any time to check or fix numbers.
 
 ---
