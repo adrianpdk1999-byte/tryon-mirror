@@ -52,6 +52,7 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 .chip.neg{background:var(--bad-bg);color:var(--bad)}
 .chip.me{outline:2px solid var(--accent)}
 .code{display:inline-block;font-weight:800;letter-spacing:1px;color:var(--ink);background:var(--chip);border-radius:6px;padding:0 6px;margin-left:4px}
+.rsp{font-weight:800;margin-top:2px}
 .coming{font-weight:600;color:var(--warn)}
 .badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-size:11px;line-height:18px;margin-left:2px}
 .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px;margin-left:6px}
@@ -114,7 +115,7 @@ h2{font-size:17px;margin:16px 0 4px}
 
 <script>
 /* Watchdog: a separate script, so it still runs if the main script fails. Shows the error on screen. */
-window.SF_VERSION = '2026-11-12b';
+window.SF_VERSION = '2026-11-12c';
 window.SF_ERRORS = [];
 window.addEventListener('error', function (e) {
   window.SF_ERRORS.push((e.message || 'Error') + (e.lineno ? ' (line ' + e.lineno + ')' : ''));
@@ -272,12 +273,14 @@ function productLink(it){
   const site = it.brand==='Oakley' ? 'oakley.com' : 'ray-ban.com';
   return 'https://www.google.com/search?q=' + encodeURIComponent('site:' + site + ' "' + code + '"');
 }
+const rspTxt = it => it.rsp ? 'RSP RM' + Number(it.rsp).toLocaleString('en-MY') : '';
 const linkBtn = (it, cls) => `<a class="btn alt small ${cls||''}" data-act="link" href="${esc(productLink(it))}" target="_blank" rel="noopener">Link</a>`;
 function itemCard(it){
   return `<div class="card item" data-open="${esc(it.sku)}">
     ${it.photo ? `<img class="thumb" loading="lazy" src="${esc(it.photo)}" alt="">` : ''}
     <div class="grow"><div class="sku">${esc(it.sku)}</div>
-      <div class="muted">${esc([it.brand, it.desc].filter(Boolean).join(' · '))}${it.cost ? ` <span class="code">${esc(it.cost)}</span>` : ''}</div>${chips(it)}</div>
+      <div class="muted">${esc([it.brand, it.desc].filter(Boolean).join(' · '))}${it.cost ? ` <span class="code">${esc(it.cost)}</span>` : ''}</div>
+      ${it.rsp ? `<div class="rsp">${esc(rspTxt(it))}</div>` : ''}${chips(it)}</div>
     <div class="total">${it.total}<small>total</small>${linkBtn(it, 'cardlink')}</div></div>`;
 }
 function msg(k){ const m = S.msg[k]; return m ? `<div class="msg ${m.t}">${esc(m.s)}</div>` : ''; }
@@ -424,7 +427,7 @@ function moreView(){
     ${isAdmin() ? `<h2>Admin · load stock from POS</h2><div class="card">${adminBox}</div>` : ''}
     <h2>Tips</h2>
     <div class="card muted">• Search ignores spaces and the leading 0: "rb2140 901", "2140 901 50" and "0RB2140" all work.<br>
-      • The letters next to a frame are its cost code.<br>
+      • The letters next to a frame are its cost code. RSP is the cost × 4, rounded up to the next RM10.<br>
       • A USB/Bluetooth barcode scanner types the UPC into the box. Press Enter to add it.<br>
       • Tap an item for its photo and its recent movements, and to add a photo.</div>`;
 }
@@ -491,6 +494,7 @@ async function openItem(sku){
   box.innerHTML = `<div class="sheet" data-act="close"><div class="in">
     <div class="row" style="justify-content:space-between"><div class="sku" style="font-size:20px">${esc(it.sku)}</div><button class="x" data-act="close">×</button></div>
     <div class="muted">${esc([it.brand, it.desc, it.upc && 'UPC ' + it.upc].filter(Boolean).join(' · '))}${it.cost ? ` <span class="code">${esc(it.cost)}</span>` : ''}</div>
+    ${it.rsp ? `<div class="rsp" style="font-size:18px">${esc(rspTxt(it))}</div>` : ''}
     ${it.photo ? `<p><img class="big" src="${esc(it.photo)}" alt=""></p>` : ''}
     ${chips(it)}
     <p class="row"><label class="btn alt small" style="margin:0">📷 ${it.photo?'Change':'Add'} photo<input type="file" accept="image/*" capture="environment" id="photo" data-sku="${esc(it.sku)}" hidden></label>

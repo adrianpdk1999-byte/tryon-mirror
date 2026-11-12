@@ -10,7 +10,8 @@
  *   Transfers : ID | Requested | From | To | SKU | Qty | Status | RequestedBy | Note | ApprovedBy | ApprovedAt | ReceivedBy | ReceivedAt
  *   Log       : Time | Shop | Type | SKU | Qty | Balance | Ref | Staff | Note
  *
- * Cost is never sent to the page. Staff see only the cost code: RODENSTICK = 1234567890.
+ * Cost is never sent to the page. Staff see only the cost code: RODENSTICK = 1234567890,
+ * and the derived RSP: cost x 4, rounded up to the next RM10.
  * Needs the Advanced Drive Service (Drive API v3) for reading scanned DOs.
  */
 
@@ -97,6 +98,14 @@ function costCode(n) {
   n = Math.round(Number(n));
   if (!(n > 0)) return '';
   return String(n).split('').map(function (d) { return COST_LETTERS.charAt((Number(d) + 9) % 10); }).join('');
+}
+
+/** Derived RSP: cost x 4, rounded UP to the next RM10 (384.48 -> 1537.92 -> 1540). Works in sen to avoid float slips. */
+function rsp(n) {
+  n = Number(n);
+  if (!(n > 0)) return 0;
+  var sen = Math.round(n * 400);          // cost x 4, in sen
+  return Math.ceil(sen / 1000) * 10;      // up to the next RM10
 }
 
 /* ---------------- sheet helpers ---------------- */
@@ -252,7 +261,7 @@ function getData_() {
     var sku = String(r[C.SKU]);
     return { sku: sku, brand: String(r[C.BRAND]), model: String(r[C.MODEL]), colour: String(r[C.COLOUR]),
       size: String(r[C.SIZE]), upc: String(r[C.UPC]), desc: String(r[C.DESC]), photo: String(r[C.PHOTO]),
-      link: String(r[C.LINK] || ''), cost: costCode(r[C.COST]), qty: q, transit: transit[sku] || {} };
+      link: String(r[C.LINK] || ''), cost: costCode(r[C.COST]), rsp: rsp(r[C.COST]), qty: q, transit: transit[sku] || {} };
   });
   // open transfers + the most recent closed ones
   var open = trs.filter(function (t) { return t.status === 'PENDING' || t.status === 'IN TRANSIT'; });
