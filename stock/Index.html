@@ -123,7 +123,7 @@ h2{font-size:17px;margin:16px 0 4px}
 
 <script>
 /* Watchdog: a separate script, so it still runs if the main script fails. Shows the error on screen. */
-window.SF_VERSION = '2026-11-12e';
+window.SF_VERSION = '2026-11-12f';
 window.SF_ERRORS = [];
 window.addEventListener('error', function (e) {
   window.SF_ERRORS.push((e.message || 'Error') + (e.lineno ? ' (line ' + e.lineno + ')' : ''));
@@ -462,7 +462,8 @@ function moreView(){
     <div class="card muted">• Search ignores spaces and the leading 0: "rb2140 901", "2140 901 50" and "0RB2140" all work.<br>
       • The letters next to a frame are its cost code. RSP is the cost × 4, rounded up to the next RM10.<br>
       • A USB/Bluetooth barcode scanner types the UPC into the box. Press Enter to add it.<br>
-      • Tap an item for its photo and its recent movements, and to add a photo.</div>`;
+      • Tap an item for its photo and its recent movements, and to add a photo.</div>
+    <p class="muted" style="text-align:center">Page version ${esc(window.SF_VERSION||'')}</p>`;
 }
 
 /* ---------- import (POS export) ---------- */
