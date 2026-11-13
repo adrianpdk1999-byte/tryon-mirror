@@ -5,7 +5,7 @@
  * Sheets:
  *   Stock     : SKU | Brand | Model | Colour | Size | UPC | Description | Photo | Link | Cost | <one column per shop code>
  *   Shops     : Code | Name | PIN (unused) | Active
- *   Users     : UserID | Name | Shop | Password | Role (Staff/Admin) | Active (Y/N)
+ *   Users     : UserID | Name | Shop | Password | Role (Staff/Admin) | Active (Y/N) | Adjust (blank / Y = own shop / ALL)
  *   Logins    : Time | UserID | Name | Shop | Device
  *   Transfers : ID | Requested | From | To | SKU | Qty | Status | RequestedBy | Note | ApprovedBy | ApprovedAt | ReceivedBy | ReceivedAt
  *   Log       : Time | Shop | Type | SKU | Qty | Balance | Ref | Staff | Note
@@ -20,7 +20,7 @@ var SHEET_STOCK = 'Stock', SHEET_SHOPS = 'Shops', SHEET_LOG = 'Log', SHEET_USERS
 var FIXED = ['SKU', 'Brand', 'Model', 'Colour', 'Size', 'UPC', 'Description', 'Photo', 'Link', 'Cost'];
 var C = { SKU: 0, BRAND: 1, MODEL: 2, COLOUR: 3, SIZE: 4, UPC: 5, DESC: 6, PHOTO: 7, LINK: 8, COST: 9 };
 var LOG_HEAD = ['Time', 'Shop', 'Type', 'SKU', 'Qty', 'Balance', 'Ref', 'Staff', 'Note'];
-var USER_HEAD = ['UserID', 'Name', 'Shop', 'Password', 'Role', 'Active'];
+var USER_HEAD = ['UserID', 'Name', 'Shop', 'Password', 'Role', 'Active', 'Adjust'];
 var LOGIN_HEAD = ['Time', 'UserID', 'Name', 'Shop', 'Device'];
 var TR_HEAD = ['ID', 'Requested', 'From', 'To', 'SKU', 'Qty', 'Status', 'RequestedBy', 'Note', 'ApprovedBy', 'ApprovedAt', 'ReceivedBy', 'ReceivedAt'];
 var T = { ID: 0, REQ: 1, FROM: 2, TO: 3, SKU: 4, QTY: 5, STATUS: 6, BY: 7, NOTE: 8, APPBY: 9, APPAT: 10, RCVBY: 11, RCVAT: 12 };
@@ -52,7 +52,8 @@ var API = {
   api_login: api_login, api_getData: api_getData, api_recordSales: api_recordSales, api_receive: api_receive,
   api_requestTransfer: api_requestTransfer, api_decideTransfer: api_decideTransfer,
   api_receiveTransfer: api_receiveTransfer, api_cancelTransfer: api_cancelTransfer,
-  api_importShop: api_importShop, api_ocr: api_ocr, api_setPhoto: api_setPhoto, api_history: api_history
+  api_importShop: api_importShop, api_ocr: api_ocr, api_setPhoto: api_setPhoto, api_history: api_history,
+  api_adjust: api_adjust, api_log: api_log
 };
 
 function doPost(e) {
@@ -140,7 +141,8 @@ function users_() {
     .filter(function (r) { return r[0]; })
     .map(function (r) {
       return { id: String(r[0]).trim(), name: String(r[1] || r[0]).trim(), shop: String(r[2] || '').trim(),
-        pass: String(r[3]).trim(), admin: /admin/i.test(r[4]), active: String(r[5] || 'Y').toUpperCase() !== 'N' };
+        pass: String(r[3]).trim(), admin: /admin/i.test(r[4]), active: String(r[5] || 'Y').toUpperCase() !== 'N',
+        adjust: /admin/i.test(r[4]) || /^ALL$/i.test(String(r[6]).trim()) ? 'ALL' : (/^(Y|YES)$/i.test(String(r[6]).trim()) ? 'SHOP' : '') };
     });
 }
 
@@ -285,13 +287,14 @@ function transfers_() {
 function api_login(id, pass, device) {
   var u = checkUser_({ user: id, pass: pass });
   sheetOrCreate_(SHEET_LOGINS, LOGIN_HEAD).appendRow([new Date(), u.id, u.name, u.shop, String(device || '').slice(0, 200)]);
-  return { id: u.id, name: u.name, shop: u.shop, role: u.admin ? 'Admin' : 'Staff' };
+  return userInfo_(u);
 }
+function userInfo_(u) { return { id: u.id, name: u.name, shop: u.shop, role: u.admin ? 'Admin' : 'Staff', adjust: u.adjust }; }
 
 function api_getData(auth) {
   var u = checkUser_(auth);
   var d = getData_();
-  d.user = { id: u.id, name: u.name, shop: u.shop, role: u.admin ? 'Admin' : 'Staff' };
+  d.user = userInfo_(u);
   return d;
 }
 
@@ -454,19 +457,99 @@ function api_setPhoto(auth, sku, b64, mime) {
   });
 }
 
-/** Last movements for one SKU (newest first). */
-function api_history(auth, sku) {
+/** Reads Log rows (oldest first) as objects. */
+function logRows_() {
+  var sh = sheet_(SHEET_LOG);
+  return rows_(sh, LOG_HEAD.length).filter(function (r) { return r[0] !== '' && r[0] != null; }).map(function (r) {
+    var t = r[0] instanceof Date ? r[0] : new Date(r[0]);
+    return { t: t, time: fmt_(t), shop: String(r[1]), type: String(r[2]), sku: String(r[3]), qty: Number(r[4]) || 0,
+      bal: r[5] === '' ? '' : Number(r[5]), ref: String(r[6] || ''), staff: String(r[7] || ''), note: String(r[8] || '') };
+  });
+}
+
+/**
+ * Full activity for one SKU, newest first: every logged movement, transfer requests
+ * (pending / rejected / cancelled), and an "Opening stock" line per shop for stock that was
+ * there before the first logged movement (e.g. loaded straight from POS reports).
+ */
+function api_history(auth, sku, limit) {
   checkUser_(auth);
-  var sh = sheet_(SHEET_LOG), n = sh.getLastRow() - 1;
-  if (n < 1) return [];
-  var start = Math.max(2, n + 2 - 3000); // look at the last 3000 log rows
-  var v = sh.getRange(start, 1, n + 2 - start, LOG_HEAD.length).getValues(), out = [];
-  for (var i = v.length - 1; i >= 0 && out.length < 25; i--) {
-    if (String(v[i][3]) === sku) {
-      out.push({ time: fmt_(new Date(v[i][0])), shop: v[i][1], type: v[i][2], qty: v[i][4], bal: v[i][5], ref: v[i][6], staff: v[i][7], note: v[i][8] });
-    }
+  limit = Math.min(Number(limit) || 25, 2000);
+  var log = logRows_().filter(function (x) { return x.sku === sku; });
+  var out = log.map(function (x) { return { time: x.time, ts: x.t.getTime() || 0, shop: x.shop, type: x.type, qty: x.qty, bal: x.bal, ref: x.ref, staff: x.staff, note: x.note }; });
+  transfers_().forEach(function (t) {
+    if (t.sku !== sku) return;
+    out.push({ time: t.requested, ts: Date.parse(t.requested) || 0, shop: t.from, type: 'TRANSFER ' + t.status, qty: '', bal: '',
+      ref: t.id, staff: t.by, note: 'to ' + t.to + (t.approvedBy ? ' · ' + t.status.toLowerCase() + ' by ' + t.approvedBy : '') + (t.note ? ' · ' + t.note : '') });
+  });
+  // opening stock: current qty minus everything logged since
+  var st = loadStock_(), i = st.bySku[sku];
+  if (i != null) {
+    shops_().forEach(function (s) {
+      var now = Number(st.rows[i][st.col[s.code]]) || 0;
+      var moved = log.filter(function (x) { return x.shop === s.code; }).reduce(function (a, x) { return a + x.qty; }, 0);
+      var first = log.filter(function (x) { return x.shop === s.code; })[0];
+      if (now - moved !== 0) out.push({ time: first ? 'before ' + first.time : 'from POS report', ts: -1, shop: s.code, type: 'OPENING STOCK',
+        qty: now - moved, bal: now - moved, ref: '', staff: '', note: 'loaded from POS closing stock report' });
+    });
   }
-  return out;
+  out.sort(function (a, b) { return b.ts - a.ts; });
+  return out.slice(0, limit);
+}
+
+/** Who may adjust which shop. */
+function canAdjust_(u, shop) {
+  if (u.adjust === 'ALL') return true;
+  return u.adjust === 'SHOP' && shop === u.shop;
+}
+
+/**
+ * Stock adjustment (stock-take, damaged, found, correction). Each line sets the counted quantity
+ * for one SKU at one shop; the difference is logged as ADJUST with the reason.
+ */
+function api_adjust(auth, shop, lines, reason) {
+  var u = checkUser_(auth);
+  if (!shops_().some(function (s) { return s.code === shop; })) throw new Error('Unknown shop ' + shop);
+  if (!canAdjust_(u, shop)) throw new Error(u.adjust === 'SHOP' ? 'You can only adjust ' + u.shop + '.' : 'You are not authorised to adjust stock. Ask the owner.');
+  reason = String(reason || '').trim();
+  if (!reason) throw new Error('Give a reason for the adjustment.');
+  return withLock_(function () {
+    var st = loadStock_(), t = new Date(), out = [];
+    var ref = 'ADJ-' + Utilities.formatDate(t, Session.getScriptTimeZone(), 'yyMMdd-HHmmss');
+    (lines || []).forEach(function (l) {
+      var target = Math.round(Number(l.count));
+      if (!isFinite(target) || l.count === '' || l.count == null) return;
+      var i = resolve_(st, { sku: l.sku, model: l.model, colour: l.colour, size: l.size, upc: l.upc });
+      if (i < 0) return;
+      var c = st.col[shop], before = Number(st.rows[i][c]) || 0, delta = target - before;
+      if (!delta) return;
+      st.rows[i][c] = target;
+      out.push([t, shop, 'ADJUST', st.rows[i][C.SKU], delta, target, ref, u.name, reason + ' (was ' + before + ')']);
+    });
+    saveStock_(st); log_(out);
+    return { saved: out.length, ref: ref };
+  });
+}
+
+/** Activity across SKUs for the Report tab. Staff without adjust rights see only their own shop. */
+function api_log(auth, opts) {
+  var u = checkUser_(auth);
+  opts = opts || {};
+  var from = opts.from ? new Date(opts.from + 'T00:00:00') : null, to = opts.to ? new Date(opts.to + 'T23:59:59') : null;
+  var shop = opts.shop || '';
+  if (!u.admin && u.adjust !== 'ALL') shop = u.shop;
+  var q = String(opts.q || '').toUpperCase().replace(/\s+/g, ' ').trim();
+  var rows = logRows_().filter(function (x) {
+    if (from && x.t < from) return false;
+    if (to && x.t > to) return false;
+    if (shop && x.shop !== shop) return false;
+    if (opts.type && x.type.indexOf(opts.type) !== 0) return false;
+    if (q && (x.sku + ' ' + x.staff + ' ' + x.ref + ' ' + x.note).toUpperCase().indexOf(q) < 0) return false;
+    return true;
+  });
+  rows.reverse();
+  var lim = Math.min(Number(opts.limit) || 500, 5000);
+  return { total: rows.length, rows: rows.slice(0, lim).map(function (x) { delete x.t; return x; }) };
 }
 
 function folder_(name) {

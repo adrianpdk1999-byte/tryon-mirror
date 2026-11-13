@@ -13,6 +13,8 @@ Staff can see straight away which shop has a frame. It does not depend on any PO
 ### Logins, cost codes, transfers
 - **Users tab**: one row per person: `UserID | Name | Shop | Password | Role (Staff/Admin) | Active (Y/N)`. Set Active to `N` to block someone. Change a password by editing the cell; that person is logged out on their next refresh.
 - **Logins tab**: every login, with time, user, shop and device.
+- **Adjust column (Users tab, column G)**: who may adjust stock counts. `Y` = their own shop, `ALL` = any shop, blank = no. Admin can always adjust.
+- **Report tab (app)**: Export (stock list to Excel, any shop/brand), Adjust (set counted quantity with a reason; logged as ADJUST), Activity (all movements by shop/type/date, to Excel), Import (Admin; replaces a shop's stock from a POS export). Tap any frame for its full activity, including the opening stock loaded from the POS reports.
 - **Cost code**: type the cost in RM in the Stock tab's **Cost** column. Staff see only the letters (RODENSTICK = 1234567890, whole ringgit: 384.48 → 384 → DIE). The cost itself never reaches the app.
 - **Transfers**: a shop requests → the Admin approves or rejects in the Transfer tab (stock leaves the sending shop on approval and shows "+n coming") → the receiving shop taps **Received** (stock is added). Every step is in the **Transfers** and **Log** tabs.
 - **Admin** users can switch the shop they work as (More tab) and load POS stock exports.
