@@ -25,6 +25,10 @@ header{position:sticky;top:0;z-index:5;background:var(--bg);padding:12px 16px 8p
 header .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
 header h1{font-size:18px;margin:0}
 header .who{font-size:13px;color:var(--muted);text-align:right}
+.bell{position:relative;border:1px solid var(--line);background:var(--card);border-radius:12px;width:42px;height:38px;font-size:18px;flex:none}
+.bell .badge{position:absolute;top:-6px;right:-6px;margin:0}
+.notif{padding:10px 0;border-bottom:1px solid var(--line)}
+.notif.unread{background:var(--warn-bg);margin:0 -8px;padding:10px 8px;border-radius:8px}
 main{padding:12px 16px 96px;max-width:760px;margin:0 auto}
 nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}
 nav button{flex:1;border:0;background:none;color:var(--muted);padding:10px 1px 12px;font-size:11px;font-weight:600;min-width:0}
@@ -110,14 +114,14 @@ b.neg{color:var(--bad)}
 <header>
   <div class="top">
     <h1>Stock Finder</h1>
-    <div class="who" id="who"></div>
+    <div class="row" style="gap:10px"><button id="bell" class="bell" data-act="bell" hidden aria-label="Notifications">🔔</button><div class="who" id="who"></div></div>
   </div>
 </header>
 <main id="app"><p class="muted"><span class="spin"></span> Loading stock…</p></main>
 <nav id="nav" hidden>
   <button data-tab="find"><span>🔍</span>Find</button>
   <button data-tab="sold"><span>🧾</span>Sold today</button>
-  <button data-tab="recv"><span>📦</span>Receive</button>
+  <button data-tab="recv"><span>📦</span>Stock in/out</button>
   <button data-tab="xfer"><span>🔁</span>Transfer</button>
   <button data-tab="report"><span>📊</span>Report</button>
   <button data-tab="more"><span>⚙️</span>More</button>
@@ -126,7 +130,7 @@ b.neg{color:var(--bad)}
 
 <script>
 /* Watchdog: a separate script, so it still runs if the main script fails. Shows the error on screen. */
-window.SF_VERSION = '2026-11-13a';
+window.SF_VERSION = '2026-11-14a';
 window.SF_ERRORS = [];
 window.addEventListener('error', function (e) {
   window.SF_ERRORS.push((e.message || 'Error') + (e.lineno ? ' (line ' + e.lineno + ')' : ''));
@@ -225,7 +229,8 @@ async function call(fn, ...args){
 const S = {
   data:null, bySku:{}, byUpc:{}, tab:'find', q:'', onlyStock:false, brand:'', branch:'', page:1,
   auth: store.get('sf_auth2', null), shop: store.get('sf_shop', ''),
-  lines: { sold: store.get('sf_sold', []), recv: store.get('sf_recv', []), xfer: store.get('sf_xfer', []), adj: store.get('sf_adj', []) },
+  lines: { sold: store.get('sf_sold', []), recv: store.get('sf_recv', []), xfer: store.get('sf_xfer', []), adj: store.get('sf_adj', []), out: store.get('sf_out', []) },
+  io: 'in', outReason: 'Return to supplier', notif: null, rq: 'pending',
   rep: 'export', adjShop: '', adjReason: 'Stock-take count', adjNote: '', act: null,
   ex: {shop:'', brand:'', only:true}, af: {shop:'', type:'', from:'', to:'', q:''},
   ref: '', toShop: '', note: '', ocrText: '', msg: {}, busy: false, imp: null
@@ -248,6 +253,35 @@ async function loadData(){
 const shopName = c => ((S.data.shops.find(s => s.code===c)||{}).name) || c;
 const shortName = c => shopName(c).replace(/\s*\(.*\)\s*$/, '');
 const isAdmin = () => !!(S.auth && S.auth.role==='Admin');
+const isMgr = () => !!(S.auth && S.auth.role==='Manager');
+const canStock = () => isAdmin() || isMgr();          // stock in / out / transfer (Managers: request only)
+const sendWord = () => isAdmin() ? '' : 'Send for approval: ';
+/** Manager requests grouped by ID: {id, shop, type, status, requested, by, uid, reason, decidedBy, lines:[{sku,qty}]} */
+function requestGroups(){
+  const g = {};
+  (S.data.requests||[]).forEach(r => { const x = g[r.id] || (g[r.id] = Object.assign({}, r, {lines:[]})); x.lines.push({sku:r.sku, qty:r.qty}); });
+  return Object.values(g).sort((a,b) => b.id.localeCompare(a.id));
+}
+function reqCard(g, buttons){
+  const what = {'STOCK IN':'Stock in', 'STOCK OUT':'Stock out', 'ADJUST':'Adjust to counted'}[g.type] || g.type;
+  return `<div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start">
+      <div><b>${esc(what)} · ${esc(shopName(g.shop))}</b><div class="muted">${esc(g.id)} · ${esc(g.requested)} · by ${esc(g.by)}</div>
+      ${g.reason ? `<div class="muted">Reason: ${esc(g.reason)}</div>` : ''}</div>
+      <span class="tag ${g.status==='APPROVED'?'ok':g.status==='PENDING'?'new':'bad'}">${esc(g.status)}</span></div>
+    ${g.lines.map(l => { const it = S.bySku[l.sku], now = it ? (it.qty[g.shop]||0) : 0;
+      return `<div class="line"><div class="sku">${dotSku(l.sku)}${it ? '' : ' <span class="tag new">NEW</span>'}</div>
+        <div>${g.type==='ADJUST' ? `${now} → <b>${l.qty}</b>` : (g.type==='STOCK OUT' ? '−' : '+') + l.qty}${g.status==='PENDING' && g.type!=='ADJUST' ? ` <span class="muted">(has ${now})</span>` : ''}</div></div>`; }).join('')}
+    ${g.decidedBy ? `<div class="muted">${g.status==='CANCELLED'?'Cancelled':g.status==='REJECTED'?'Rejected':'Approved'} by ${esc(g.decidedBy)} · ${esc(g.decidedAt)}</div>` : ''}
+    ${buttons ? `<p class="row" style="margin:10px 0 0">${buttons}</p>` : ''}</div>`;
+}
+const reqButtons = g => g.status!=='PENDING' ? '' : isAdmin()
+  ? `<button class="btn small" data-act="rqApprove" data-id="${esc(g.id)}">Approve</button><button class="btn alt small" data-act="rqReject" data-id="${esc(g.id)}">Reject</button>`
+  : (g.uid===S.auth.id ? `<button class="btn alt small" data-act="rqCancel" data-id="${esc(g.id)}">Cancel request</button>` : '');
+/** Pending requests for one shop and type(s), shown on the page where they were made. */
+function myPending(types){
+  const G = requestGroups().filter(g => g.status==='PENDING' && g.shop===S.shop && types.includes(g.type));
+  return G.length ? `<h2>Waiting for approval</h2>${G.map(g => reqCard(g, reqButtons(g))).join('')}` : '';
+}
 /** Transfers grouped into requests: {id, from, to, status, requested, by, note, approvedBy, receivedBy, lines:[{sku,qty}]} */
 function transferGroups(){
   const g = {};
@@ -306,10 +340,14 @@ function msg(k){ const m = S.msg[k]; return m ? `<div class="msg ${m.t}">${esc(m
 
 function render(){
   const app = $('#app');
-  $('#who').innerHTML = S.auth && S.data ? `${esc(S.auth.name)}${isAdmin()?' (Admin)':''}<br><span>${esc(shopName(S.shop))}</span>` : '';
-  if (!S.auth || !S.data){ $('#nav').hidden = true; app.innerHTML = loginView(); return; }
+  $('#who').innerHTML = S.auth && S.data ? `${esc(S.auth.name)}${isAdmin()?' (Admin)':isMgr()?' (Manager)':''}<br><span>${esc(shopName(S.shop))}</span>` : '';
+  if (!S.auth || !S.data){ $('#nav').hidden = true; $('#bell').hidden = true; app.innerHTML = loginView(); return; }
   $('#nav').hidden = false;
+  if (S.tab==='recv' && !canStock()) S.tab = 'find';
+  document.querySelector('nav [data-tab=recv]').hidden = !canStock();
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab===S.tab));
+  const bell = $('#bell'); bell.hidden = !isAdmin();
+  if (isAdmin()){ const n = S.notif ? S.notif.unread + S.notif.pending : 0; bell.innerHTML = '🔔' + (n ? `<i class="badge">${n > 99 ? '99+' : n}</i>` : ''); }
   const todo = xferTodo(), xb = document.querySelector('nav [data-tab=xfer]');
   xb.innerHTML = `<span>🔁</span>Transfer${todo ? `<i class="badge">${todo}</i>` : ''}`;
   app.innerHTML = ({find:findView, sold:soldView, recv:recvView, xfer:xferView, report:reportView, more:moreView})[S.tab]();
@@ -399,7 +437,19 @@ function soldView(){
 }
 
 function recvView(){
-  return `<h2>Receive new stock · ${esc(shopName(S.shop))}</h2>
+  const seg = `<div class="seg"><button data-act="io" data-v="in" class="${S.io==='in'?'on':''}">Stock in</button><button data-act="io" data-v="out" class="${S.io==='out'?'on':''}">Stock out</button></div>`;
+  const note = isMgr() ? `<div class="msg warn">As Manager, your entries are sent to the owner for approval. Stock changes only after approval.</div>` : '';
+  if (S.io==='out') return `<h2>Stock out · ${esc(shopName(S.shop))}</h2>${seg}${note}
+    <p class="muted">For frames leaving the shop for any reason other than a sale (sales go in Sold today).</p>
+    ${myPending(['STOCK OUT'])}
+    <label>Frames going out</label>
+    ${lineEditor('out', false)}
+    <label>Reason</label><select id="outReason">${['Return to supplier','Damaged / written off','Sample / display','Given away','Other'].map(r => `<option ${S.outReason===r?'selected':''}>${r}</option>`).join('')}</select>
+    <label>Note (optional)</label><input id="note" value="${esc(S.note)}" placeholder="e.g. RA number, supplier name">
+    ${msg('out')}
+    <p><button class="btn wide" data-act="saveOut" ${S.busy||!S.lines.out.length?'disabled':''}>${isMgr() ? 'Send for approval' : 'Remove from ' + esc(shopName(S.shop)) + ' stock'}</button></p>`;
+  return `<h2>Stock in · ${esc(shopName(S.shop))}</h2>${seg}${note}
+    ${myPending(['STOCK IN'])}
     <div class="card"><b>Scan the delivery order</b>
       <p class="muted" style="margin:4px 0 8px">Take clear photos of each DO page (flat, good light) or choose a PDF. The items found are added below for you to check.</p>
       <input type="file" id="doFile" accept="image/*,application/pdf" multiple>
@@ -410,7 +460,7 @@ function recvView(){
     <label>Items received</label>
     ${lineEditor('recv', true)}
     ${msg('recv')}
-    <p><button class="btn wide" data-act="saveRecv" ${S.busy||!S.lines.recv.length?'disabled':''}>Add to ${esc(shopName(S.shop))} stock</button></p>`;
+    <p><button class="btn wide" data-act="saveRecv" ${S.busy||!S.lines.recv.length?'disabled':''}>${isMgr() ? 'Send for approval' : 'Add to ' + esc(shopName(S.shop)) + ' stock'}</button></p>`;
 }
 
 function xferCard(g, buttons){
@@ -439,7 +489,7 @@ function xferView(){
     ${sec('Arriving at ' + esc(shopName(me)), incoming, g => `<button class="btn small" data-act="received" data-id="${esc(g.id)}">Received, add to our stock</button>`)}
     ${sec('Sent from ' + esc(shopName(me)), mine, g => g.status==='PENDING' ? `<button class="btn alt small" data-act="cancelX" data-id="${esc(g.id)}">Cancel request</button>` : '')}
     ${sec('Other shops in transit', otherOpen, g => `<button class="btn alt small" data-act="received" data-id="${esc(g.id)}">Mark received</button>`)}
-    <h2>Request a transfer from ${esc(shopName(me))}</h2>
+    ${canStock() ? `<h2>Request a transfer from ${esc(shopName(me))}</h2>
     <label>Send to</label><select id="toShop"><option value="">Choose shop…</option>
       ${others.map(s => `<option value="${esc(s.code)}" ${S.toShop===s.code?'selected':''}>${esc(s.name)}</option>`).join('')}</select>
     <label>Frames to send</label>
@@ -447,7 +497,8 @@ function xferView(){
     <label>Note (optional)</label><input id="note" value="${esc(S.note)}" placeholder="e.g. customer reserved, sent by Grab">
     ${msg('xfer')}
     <p><button class="btn wide" data-act="saveXfer" ${S.busy||!S.lines.xfer.length?'disabled':''}>Send for approval</button></p>
-    <p class="muted">Stock does not move until the owner approves. After approval the frames leave ${esc(shopName(me))} and show as "coming" at the other shop until that shop taps Received.</p>
+    <p class="muted">Stock does not move until the owner approves. After approval the frames leave ${esc(shopName(me))} and show as "coming" at the other shop until that shop taps Received.</p>`
+    : `<div class="msg warn">Only a Manager or the owner can request transfers. You can confirm frames arriving at ${esc(shopName(me))} above.</div>`}
     ${sec('Recent transfers', recent)}`;
 }
 
@@ -468,13 +519,15 @@ function moreView(){
 
 /* ---------- Report tab ---------- */
 const canAdj = () => !!(S.auth && (S.auth.adjust==='ALL' || S.auth.adjust==='SHOP'));
-const adjShops = () => S.auth.adjust==='ALL' ? S.data.shops : S.data.shops.filter(s => s.code===S.auth.shop);
+const adjShops = () => S.auth.adjust==='ALL' || isAdmin() ? S.data.shops : S.data.shops.filter(s => s.code===S.auth.shop);
 const seeAllShops = () => isAdmin() || S.auth.adjust==='ALL';
 const shopOpts = (sel, list, all) => (all ? `<option value="">${esc(all)}</option>` : '') + list.map(s => `<option value="${esc(s.code)}" ${sel===s.code?'selected':''}>${esc(s.name)}</option>`).join('');
 function reportView(){
-  const tabs = [['export','Export'],['adjust','Adjust'],['activity','Activity']].concat(isAdmin() ? [['import','Import']] : []);
+  const nPend = requestGroups().filter(g => g.status==='PENDING').length;
+  const tabs = [['export','Export'],['adjust','Adjust'],['activity','Activity']]
+    .concat(isAdmin() ? [['requests', 'Approvals' + (nPend ? ` (${nPend})` : '')], ['import','Import']] : isMgr() ? [['requests','My requests']] : []);
   const seg = `<div class="seg">${tabs.map(([k,l]) => `<button data-act="rep" data-r="${k}" class="${S.rep===k?'on':''}">${l}</button>`).join('')}</div>`;
-  const body = ({export:exportView, adjust:adjustView, activity:activityView, import:importView})[S.rep] || exportView;
+  const body = ({export:exportView, adjust:adjustView, activity:activityView, import:importView, requests:requestsView})[S.rep] || exportView;
   return `<h2>Report</h2>${seg}${body()}`;
 }
 function shopSummary(){
@@ -487,6 +540,16 @@ function shopSummary(){
   return `<div class="card scroll"><table><tr><th>Shop</th><th>Models</th><th>Frames</th><th>Below 0</th><th>Coming</th></tr>
     ${rows.map(r => `<tr><td>${esc(r.s.name)}</td><td>${r.models}</td><td><b>${r.frames}</b></td><td>${r.neg ? `<span class="tag bad">${r.neg}</span>` : 0}</td><td>${r.coming||''}</td></tr>`).join('')}
     <tr><td><b>All shops</b></td><td>${tot.models}</td><td><b>${tot.frames}</b></td><td>${tot.neg}</td><td></td></tr></table></div>`;
+}
+function requestsView(){
+  const G = requestGroups().filter(g => isAdmin() || g.shop===S.auth.shop);
+  const pend = G.filter(g => g.status==='PENDING'), done = G.filter(g => g.status!=='PENDING').slice(0, 15);
+  const tp = isAdmin() ? transferGroups().filter(g => g.status==='PENDING').length : 0;
+  return `${msg('rq')}
+    ${tp ? `<div class="msg warn">${tp} transfer request${tp===1?'':'s'} waiting too. <a href="#" data-tab="xfer">Open Transfer tab</a></div>` : ''}
+    <h2 style="font-size:15px">${isAdmin() ? 'Waiting for your approval' : 'Waiting for the owner'}</h2>
+    ${pend.map(g => reqCard(g, reqButtons(g))).join('') || '<p class="muted">Nothing waiting.</p>'}
+    ${done.length ? `<h2 style="font-size:15px">Recently decided</h2>${done.map(g => reqCard(g)).join('')}` : ''}`;
 }
 function exportView(){
   const e = S.ex, n = exportItems().length;
@@ -504,7 +567,7 @@ function exportItems(){
     (!e.only || (e.shop ? (it.qty[e.shop]||0) !== 0 : it.total !== 0 || Object.values(it.qty).some(q => q))) ).sort((a,b) => a.sku.localeCompare(b.sku));
 }
 function adjustView(){
-  if (!canAdj()) return `<div class="msg warn">You are not authorised to adjust stock. The owner can give access in the Users tab of the Sheet (Adjust column).</div>`;
+  if (!canAdj() && !isMgr()) return `<div class="msg warn">You are not authorised to adjust stock. The owner can give access in the Users tab of the Sheet (Adjust column).</div>`;
   const list = adjShops();
   if (!list.some(s => s.code===S.adjShop)) S.adjShop = list.some(s => s.code===S.shop) ? S.shop : (list[0]||{}).code;
   const L = S.lines.adj, sh = S.adjShop;
@@ -514,7 +577,7 @@ function adjustView(){
       <div class="qty"><span class="muted" style="font-size:12px">Counted</span><input value="${esc(l.count??'')}" inputmode="numeric" data-f="count" data-i="${i}" data-k="adj">
       <button class="x" data-act="del" data-i="${i}" data-k="adj" aria-label="Remove">×</button></div></div>`; }).join('');
   const changes = L.filter(l => { const it = S.bySku[l.sku]; return it && l.count !== '' && l.count != null && +l.count !== (it.qty[sh]||0); }).length;
-  return `<div class="card"><p class="muted" style="margin-top:0">Type the quantity you <b>actually counted</b>. The difference is recorded as an adjustment under your name with the reason.</p>
+  return `${!canAdj() ? '<div class="msg warn">As Manager, adjustments are sent to the owner for approval.</div>' + myPending(['ADJUST']) : ''}<div class="card"><p class="muted" style="margin-top:0">Type the quantity you <b>actually counted</b>. The difference is recorded as an adjustment under your name with the reason.</p>
     <label>Shop</label><select id="adjShop" ${list.length<2?'disabled':''}>${shopOpts(sh, list)}</select>
     <label>Frames</label>
     <div class="sugg"><input id="add" data-k="adj" placeholder="Type model or scan UPC, then pick" autocomplete="off"><div class="list" id="sugg" hidden></div></div>
@@ -522,7 +585,7 @@ function adjustView(){
     <label>Reason</label><select id="adjReason">${['Stock-take count','Damaged / written off','Found','Missing / lost','Correction of error','Other'].map(r => `<option ${S.adjReason===r?'selected':''}>${r}</option>`).join('')}</select>
     <label>Note (optional)</label><input id="adjNote" value="${esc(S.adjNote)}" placeholder="e.g. counted by Aina & Ben">
     ${msg('adj')}
-    <p><button class="btn wide" data-act="saveAdj" ${S.busy||!changes?'disabled':''}>Save ${changes} adjustment${changes===1?'':'s'}</button></p></div>`;
+    <p><button class="btn wide" data-act="saveAdj" ${S.busy||!changes?'disabled':''}>${!canAdj() ? 'Send ' + changes + ' for approval' : 'Save ' + changes + ' adjustment' + (changes===1?'':'s')}</button></p></div>`;
 }
 function activityView(){
   const f = S.af;
@@ -691,13 +754,32 @@ async function submit(k, fn, args, okText){
 document.addEventListener('click', async e => {
   const t = e.target.closest('[data-act],[data-open],[data-tab],[data-pick]');
   if (!t) return;
-  if (t.dataset.tab){ S.tab = t.dataset.tab; S.msg = {}; render(); window.scrollTo(0, 0); return; }
+  if (t.dataset.tab){ e.preventDefault(); S.tab = t.dataset.tab; S.msg = {}; render(); window.scrollTo(0, 0); return; }
   if (t.dataset.open){ e.preventDefault(); openItem(t.dataset.open); return; }
   if (t.dataset.pick && t.dataset.k==='adj'){ const sk = t.dataset.pick; if (!S.lines.adj.some(l => l.sku===sk)) S.lines.adj.unshift({sku:sk, count:''}); saveLines('adj'); render(); setTimeout(() => $('#add') && $('#add').focus(), 0); return; }
   if (t.dataset.pick){ addLine(t.dataset.k, S.bySku[t.dataset.pick], 1); render(); setTimeout(() => $('#add') && $('#add').focus(), 0); return; }
   const a = t.dataset.act, k = t.dataset.k, i = +t.dataset.i;
   if (a==='link') return; // let the browser open the link
   if (a==='brand'){ S.brand = t.dataset.b; S.page = 1; render(); return; }
+  if (a==='io'){ S.io = t.dataset.v; S.msg = {}; render(); return; }
+  if (a==='saveOut'){
+    if (!confirm(isMgr() ? `Send this stock-out to the owner for approval?` : `Remove these frames from ${shopName(S.shop)} stock?\nReason: ${S.outReason}`)) return;
+    return submit('out', 'api_stockOut', [S.auth, linesForServer('out'), S.outReason + (S.note ? ' · ' + S.note : ''), S.shop],
+      r => r.pending ? `Sent for approval: ${r.id} (${r.lines} line(s)).` : `Removed ${r.saved} line(s) from stock.`);
+  }
+  if (['rqApprove','rqReject','rqCancel'].includes(a)){
+    const id = t.dataset.id;
+    if (!confirm({rqApprove:`Approve ${id}? Stock changes now.`, rqReject:`Reject ${id}?`, rqCancel:`Cancel your request ${id}?`}[a])) return;
+    S.busy = true; render();
+    try {
+      if (a==='rqCancel') await call('api_cancelRequest', S.auth, id); else await call('api_decideRequest', S.auth, id, a==='rqApprove');
+      await loadData(); refreshNotif();
+      S.msg.rq = S.msg.out = S.msg.recv = S.msg.adj = {t:'ok', s:{rqApprove:`Approved ${id}. Stock updated.`, rqReject:`Rejected ${id}.`, rqCancel:`Cancelled ${id}.`}[a]};
+    } catch(err){ S.msg.rq = S.msg.out = S.msg.recv = S.msg.adj = {t:'err', s:err.message}; }
+    S.busy = false; render(); return;
+  }
+  if (a==='bell'){ openNotif(); return; }
+  if (a==='notifGo'){ $('#sheet').innerHTML = ''; S.tab = 'report'; S.rep = 'requests'; render(); return; }
   if (a==='rep'){ S.rep = t.dataset.r; S.msg = {}; render(); return; }
   if (a==='exStock'){ try { await exportStock(); S.msg.ex = {t:'ok', s:'Excel file downloaded.'}; } catch(err){ S.msg.ex = {t:'err', s:'Export failed: ' + err.message}; } render(); return; }
   if (a==='exAct'){ try { await exportActivity(); } catch(err){ S.msg.act = {t:'err', s:'Export failed: ' + err.message}; render(); } return; }
@@ -715,7 +797,7 @@ document.addEventListener('click', async e => {
     try {
       const r = await call('api_adjust', S.auth, sh, L.map(l => ({sku:l.sku, count:+l.count})), S.adjReason + (S.adjNote ? ' · ' + S.adjNote : ''));
       S.lines.adj = []; saveLines('adj'); S.adjNote = ''; await loadData();
-      S.msg.adj = {t:'ok', s:`Saved ${r.saved} adjustment(s), reference ${r.ref}.`};
+      S.msg.adj = {t:'ok', s: r.pending ? `Sent for approval: ${r.id}. The count changes when the owner approves.` : `Saved ${r.saved} adjustment(s), reference ${r.ref}.`};
     } catch(err){ S.msg.adj = {t:'err', s:'Not saved: ' + err.message}; }
     S.busy = false; render(); return;
   }
@@ -729,11 +811,11 @@ document.addEventListener('click', async e => {
     try {
       const r = await call('api_login', user, pass, navigator.userAgent);
       S.auth = Object.assign({user, pass}, r); S.shop = r.shop; S.tab = 'find';
-      await loadData();
+      await loadData(); refreshNotif();
     } catch(err){ S.auth = null; S.data = null; S.msg.login = {t:'err', s:err.message}; }
     store.set('sf_auth2', S.auth); S.busy = false; render(); return;
   }
-  if (a==='logout'){ S.auth = null; S.data = null; S.imp = null; store.set('sf_auth2', null); store.set('sf_shop', ''); render(); return; }
+  if (a==='logout'){ S.notif = null; S.auth = null; S.data = null; S.imp = null; store.set('sf_auth2', null); store.set('sf_shop', ''); render(); return; }
   if (['approve','reject','received','cancelX'].includes(a)){
     const id = t.dataset.id;
     const ask = {approve:'Approve transfer ' + id + '? The frames come off the sending shop now.', reject:'Reject transfer ' + id + '?',
@@ -762,7 +844,7 @@ document.addEventListener('click', async e => {
   }
   if (a==='saveRecv'){
     if (!confirm(`Add these frames to ${shopName(S.shop)} stock?`)) return;
-    return submit('recv', 'api_receive', [S.auth, linesForServer('recv'), S.ref, S.shop], r => `Added ${r.saved} line(s) to stock.`);
+    return submit('recv', 'api_receive', [S.auth, linesForServer('recv'), S.ref, S.shop], r => r.pending ? `Sent for approval: ${r.id} (${r.lines} line(s)). Stock changes when the owner approves.` : `Added ${r.saved} line(s) to stock.`);
   }
   if (a==='saveXfer'){
     if (!S.toShop){ S.msg.xfer = {t:'err', s:'Choose the shop you are sending to.'}; return render(); }
@@ -832,6 +914,7 @@ document.addEventListener('change', async e => {
   if (t.id==='exOnly'){ S.ex.only = t.checked; render(); }
   if (t.id==='adjShop'){ S.adjShop = t.value; render(); }
   if (t.id==='adjReason') S.adjReason = t.value;
+  if (t.id==='outReason') S.outReason = t.value;
   if (t.id==='afShop') S.af.shop = t.value;
   if (t.id==='afType') S.af.type = t.value;
   if (t.id==='afFrom') S.af.from = t.value;
@@ -875,6 +958,27 @@ function showSugg(inp){
   box.hidden = false;
 }
 
+/* ---------- owner notifications ---------- */
+async function refreshNotif(){
+  if (!isAdmin()) return;
+  try { S.notif = await call('api_notifications', S.auth); if (S.data && S.auth) render(); } catch(e){}
+}
+async function openNotif(){
+  await refreshNotif();
+  const N = S.notif || {rows:[], unread:0, pending:0};
+  const what = r => ({SOLD:'sold', RECEIVE:'stock in', 'STOCK OUT':'stock out', ADJUST:'adjusted', IMPORT:'imported', 'TRANSFER OUT':'sent', 'TRANSFER IN':'received'})[r.type] || r.type.toLowerCase();
+  $('#sheet').innerHTML = `<div class="sheet" data-act="close"><div class="in">
+    <div class="row" style="justify-content:space-between"><b style="font-size:18px">Notifications</b><button class="x" data-act="close">×</button></div>
+    ${N.pending ? `<p><button class="btn wide" data-act="notifGo">${N.pending} request${N.pending===1?'':'s'} waiting for your approval</button></p>` : '<p class="muted">Nothing waiting for approval.</p>'}
+    <p class="muted">${N.unread ? N.unread + ' new since you last looked' : 'No new activity'} · changes made by others</p>
+    ${N.rows.map(r => `<div class="notif ${r.unread?'unread':''}"><div><b>${esc(r.staff || 'Someone')}</b> ${esc(what(r))} <b>${['SOLD','STOCK OUT','TRANSFER OUT','TRANSFER IN','RECEIVE'].includes(r.type) ? esc(Math.abs(r.qty)) : (r.qty>0?'+':'') + esc(r.qty)}</b> × ${S.bySku[r.sku] ? `<a href="#" data-open="${esc(r.sku)}">${dotSku(r.sku)}</a>` : esc(r.sku)}</div>
+      <div class="muted">${esc(shopName(r.shop))} · ${esc(r.time)}${r.bal!=='' ? ' · now ' + esc(r.bal) : ''}${r.note ? ' · ' + esc(r.note) : ''}</div></div>`).join('') || '<p class="muted">No activity by others yet.</p>'}
+  </div></div>`;
+  if (N.unread){ try { await call('api_markSeen', S.auth); S.notif.unread = 0; render(); } catch(e){} }
+}
+setInterval(() => { if (document.visibilityState==='visible') refreshNotif(); }, 60000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState==='visible') refreshNotif(); });
+
 (async function start(){
   if (!S.auth){ render(); return; }
   try { await loadData(); }
@@ -884,7 +988,7 @@ function showSugg(inp){
       <p><button class="btn" onclick="location.reload()">Try again</button></p>`;
     return;
   }
-  render();
+  render(); refreshNotif();
 })();
 </script>
 </body>

@@ -5,8 +5,9 @@
  * Sheets:
  *   Stock     : SKU | Brand | Model | Colour | Size | UPC | Description | Photo | Link | Cost | <one column per shop code>
  *   Shops     : Code | Name | PIN (unused) | Active
- *   Users     : UserID | Name | Shop | Password | Role (Staff/Admin) | Active (Y/N) | Adjust (blank / Y = own shop / ALL)
+ *   Users     : UserID | Name | Shop | Password | Role (Staff / Manager / Admin) | Active (Y/N) | Adjust (blank / Y = own shop / ALL)
  *   Logins    : Time | UserID | Name | Shop | Device
+ *   Requests  : ID | Requested | Shop | Type (STOCK IN / STOCK OUT / ADJUST) | SKU | Qty | Reason | Status | RequestedBy | DecidedBy | DecidedAt | Details
  *   Transfers : ID | Requested | From | To | SKU | Qty | Status | RequestedBy | Note | ApprovedBy | ApprovedAt | ReceivedBy | ReceivedAt
  *   Log       : Time | Shop | Type | SKU | Qty | Balance | Ref | Staff | Note
  *
@@ -16,7 +17,15 @@
  */
 
 var SHEET_STOCK = 'Stock', SHEET_SHOPS = 'Shops', SHEET_LOG = 'Log', SHEET_USERS = 'Users',
-    SHEET_LOGINS = 'Logins', SHEET_TRANSFERS = 'Transfers';
+    SHEET_LOGINS = 'Logins', SHEET_TRANSFERS = 'Transfers', SHEET_REQ = 'Requests';
+/*
+ * Roles: Staff   = look up + record sales (Sold today) + confirm arrival of approved transfers.
+ *        Manager = Staff + REQUEST stock in, stock out, adjustments and transfers for their shop (owner approves).
+ *        Admin   = everything directly, and approves requests.
+ * Users with Adjust = Y / ALL may still adjust directly without approval.
+ */
+var REQ_HEAD = ['ID', 'Requested', 'Shop', 'Type', 'SKU', 'Qty', 'Reason', 'Status', 'RequestedBy', 'DecidedBy', 'DecidedAt', 'Details'];
+var R = { ID: 0, REQ: 1, SHOP: 2, TYPE: 3, SKU: 4, QTY: 5, REASON: 6, STATUS: 7, BY: 8, DECBY: 9, DECAT: 10, DET: 11 };
 var FIXED = ['SKU', 'Brand', 'Model', 'Colour', 'Size', 'UPC', 'Description', 'Photo', 'Link', 'Cost'];
 var C = { SKU: 0, BRAND: 1, MODEL: 2, COLOUR: 3, SIZE: 4, UPC: 5, DESC: 6, PHOTO: 7, LINK: 8, COST: 9 };
 var LOG_HEAD = ['Time', 'Shop', 'Type', 'SKU', 'Qty', 'Balance', 'Ref', 'Staff', 'Note'];
@@ -53,7 +62,8 @@ var API = {
   api_requestTransfer: api_requestTransfer, api_decideTransfer: api_decideTransfer,
   api_receiveTransfer: api_receiveTransfer, api_cancelTransfer: api_cancelTransfer,
   api_importShop: api_importShop, api_ocr: api_ocr, api_setPhoto: api_setPhoto, api_history: api_history,
-  api_adjust: api_adjust, api_log: api_log
+  api_adjust: api_adjust, api_log: api_log, api_stockOut: api_stockOut, api_decideRequest: api_decideRequest,
+  api_cancelRequest: api_cancelRequest, api_notifications: api_notifications, api_markSeen: api_markSeen
 };
 
 function doPost(e) {
@@ -67,6 +77,14 @@ function doPost(e) {
   return json_(out);
 }
 
+/** Unique reference like RQ-261114-153012-7: date-time plus a counter that never repeats. */
+function newId_(prefix) {
+  var props = PropertiesService.getScriptProperties();
+  var n = Number(props.getProperty('seq') || 0) + 1;
+  props.setProperty('seq', String(n));
+  return prefix + '-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyMMdd-HHmmss') + '-' + n;
+}
+
 function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 
 /** Run from the editor to create any missing tabs. Safe to run again. */
@@ -77,6 +95,7 @@ function setup() {
   sheetOrCreate_(SHEET_USERS, USER_HEAD).getRange('D:D').setNumberFormat('@');
   sheetOrCreate_(SHEET_LOGINS, LOGIN_HEAD);
   sheetOrCreate_(SHEET_TRANSFERS, TR_HEAD);
+  sheetOrCreate_(SHEET_REQ, REQ_HEAD);
 }
 
 /* ---------------- normalising ---------------- */
@@ -141,7 +160,7 @@ function users_() {
     .filter(function (r) { return r[0]; })
     .map(function (r) {
       return { id: String(r[0]).trim(), name: String(r[1] || r[0]).trim(), shop: String(r[2] || '').trim(),
-        pass: String(r[3]).trim(), admin: /admin/i.test(r[4]), active: String(r[5] || 'Y').toUpperCase() !== 'N',
+        pass: String(r[3]).trim(), admin: /admin/i.test(r[4]), manager: /manager/i.test(r[4]), active: String(r[5] || 'Y').toUpperCase() !== 'N',
         adjust: /admin/i.test(r[4]) || /^ALL$/i.test(String(r[6]).trim()) ? 'ALL' : (/^(Y|YES)$/i.test(String(r[6]).trim()) ? 'SHOP' : '') };
     });
 }
@@ -268,7 +287,9 @@ function getData_() {
   // open transfers + the most recent closed ones
   var open = trs.filter(function (t) { return t.status === 'PENDING' || t.status === 'IN TRANSIT'; });
   var closed = trs.filter(function (t) { return t.status !== 'PENDING' && t.status !== 'IN TRANSIT'; }).slice(-60);
-  return { shops: shops, items: items, transfers: open.concat(closed), at: new Date().toISOString() };
+  var reqs = requests_(), ropen = reqs.filter(function (r) { return r.status === 'PENDING'; });
+  var rclosed = reqs.filter(function (r) { return r.status !== 'PENDING'; }).slice(-80);
+  return { shops: shops, items: items, transfers: open.concat(closed), requests: ropen.concat(rclosed), at: new Date().toISOString() };
 }
 
 function transfers_() {
@@ -289,7 +310,10 @@ function api_login(id, pass, device) {
   sheetOrCreate_(SHEET_LOGINS, LOGIN_HEAD).appendRow([new Date(), u.id, u.name, u.shop, String(device || '').slice(0, 200)]);
   return userInfo_(u);
 }
-function userInfo_(u) { return { id: u.id, name: u.name, shop: u.shop, role: u.admin ? 'Admin' : 'Staff', adjust: u.adjust }; }
+function userInfo_(u) { return { id: u.id, name: u.name, shop: u.shop, role: u.admin ? 'Admin' : u.manager ? 'Manager' : 'Staff', adjust: u.adjust }; }
+function needManager_(u, what) {
+  if (!u.admin && !u.manager) throw new Error('Only a Manager or the owner can ' + what + '. Ask your manager.');
+}
 
 function api_getData(auth) {
   var u = checkUser_(auth);
@@ -316,7 +340,9 @@ function api_recordSales(auth, lines, note, shop) {
 /** New stock arriving at a shop (from a supplier DO). */
 function api_receive(auth, lines, ref, shop) {
   var u = checkUser_(auth), code = shopFor_(u, shop);
+  needManager_(u, 'record new stock');
   lines = cleanLines_(lines);
+  if (!u.admin) return createRequest_(u, code, 'STOCK IN', lines, ref ? 'DO ' + ref : 'New stock');
   return withLock_(function () {
     var st = loadStock_(), t = new Date(), out = [];
     lines.forEach(function (l) {
@@ -331,12 +357,13 @@ function api_receive(auth, lines, ref, shop) {
 /** Step 1: a shop asks to send frames to another shop. Stock does not move yet. */
 function api_requestTransfer(auth, toShop, lines, note, shop) {
   var u = checkUser_(auth), from = shopFor_(u, shop);
+  needManager_(u, 'request a transfer');
   if (!toShop || toShop === from) throw new Error('Choose a different shop to send to.');
   shopFor_({ admin: true }, toShop);
   lines = cleanLines_(lines);
   return withLock_(function () {
     var st = loadStock_(), t = new Date();
-    var id = 'TR-' + Utilities.formatDate(t, Session.getScriptTimeZone(), 'yyMMdd-HHmmss');
+    var id = newId_('TR');
     var rows = [];
     lines.forEach(function (l) {
       var i = resolve_(st, l, false);
@@ -355,7 +382,8 @@ function editTransfer_(id, status, fn) {
   var sh = sheetOrCreate_(SHEET_TRANSFERS, TR_HEAD), v = rows_(sh, TR_HEAD.length), hit = [];
   v.forEach(function (r, i) { if (String(r[T.ID]) === id && String(r[T.STATUS]) === status) hit.push(i); });
   if (!hit.length) throw new Error('Transfer ' + id + ' is no longer ' + status.toLowerCase() + '. Refresh and try again.');
-  hit.forEach(function (i) { fn(v[i]); sh.getRange(i + 2, 1, 1, TR_HEAD.length).setValues([v[i]]); });
+  hit.forEach(function (i) { fn(v[i]); });   // all lines first: any error stops before anything is written
+  hit.forEach(function (i) { sh.getRange(i + 2, 1, 1, TR_HEAD.length).setValues([v[i]]); });
   return hit.map(function (i) { return v[i]; });
 }
 
@@ -432,6 +460,7 @@ function api_importShop(auth, shop, lines, fileName) {
 /** Reads a scanned / photographed DO with Google Drive OCR. Returns plain text. */
 function api_ocr(auth, files, shop) {
   var u = checkUser_(auth), code = shopFor_(u, shop);
+  needManager_(u, 'read delivery orders');
   var folder = folder_(SCAN_FOLDER), text = [];
   (files || []).forEach(function (f) {
     var blob = Utilities.newBlob(Utilities.base64Decode(f.b64), f.mime, code + ' ' + f.name);
@@ -510,12 +539,18 @@ function canAdjust_(u, shop) {
 function api_adjust(auth, shop, lines, reason) {
   var u = checkUser_(auth);
   if (!shops_().some(function (s) { return s.code === shop; })) throw new Error('Unknown shop ' + shop);
-  if (!canAdjust_(u, shop)) throw new Error(u.adjust === 'SHOP' ? 'You can only adjust ' + u.shop + '.' : 'You are not authorised to adjust stock. Ask the owner.');
   reason = String(reason || '').trim();
   if (!reason) throw new Error('Give a reason for the adjustment.');
+  if (!canAdjust_(u, shop)) {
+    if (u.manager && shop === u.shop) {
+      return createRequest_(u, shop, 'ADJUST', (lines || []).filter(function (l) { return l.count !== '' && l.count != null && isFinite(Number(l.count)); })
+        .map(function (l) { return { sku: l.sku, model: l.model, colour: l.colour, size: l.size, upc: l.upc, qty: Math.round(Number(l.count)) }; }), reason);
+    }
+    throw new Error(u.manager ? 'You can only request adjustments for ' + u.shop + '.' : u.adjust === 'SHOP' ? 'You can only adjust ' + u.shop + '.' : 'You are not authorised to adjust stock. Ask the owner.');
+  }
   return withLock_(function () {
     var st = loadStock_(), t = new Date(), out = [];
-    var ref = 'ADJ-' + Utilities.formatDate(t, Session.getScriptTimeZone(), 'yyMMdd-HHmmss');
+    var ref = newId_('ADJ');
     (lines || []).forEach(function (l) {
       var target = Math.round(Number(l.count));
       if (!isFinite(target) || l.count === '' || l.count == null) return;
@@ -529,6 +564,136 @@ function api_adjust(auth, shop, lines, reason) {
     saveStock_(st); log_(out);
     return { saved: out.length, ref: ref };
   });
+}
+
+/* ---------------- stock out + approval requests ---------------- */
+
+/** Stock leaving a shop for reasons other than a sale (return to supplier, damaged, sample ...). */
+function api_stockOut(auth, lines, reason, shop) {
+  var u = checkUser_(auth), code = shopFor_(u, shop);
+  needManager_(u, 'take stock out');
+  reason = String(reason || '').trim();
+  if (!reason) throw new Error('Give a reason for taking the stock out.');
+  lines = cleanLines_(lines);
+  if (!u.admin) return createRequest_(u, code, 'STOCK OUT', lines, reason);
+  return withLock_(function () {
+    var st = loadStock_(), t = new Date(), out = [];
+    lines.forEach(function (l) {
+      var i = resolve_(st, l, false); if (i < 0) return;
+      out.push([t, code, 'STOCK OUT', st.rows[i][C.SKU], -l.qty, addQty_(st, i, code, -l.qty), '', u.name, reason]);
+    });
+    saveStock_(st); log_(out);
+    return { saved: out.length };
+  });
+}
+
+/** A Manager's request: nothing moves until the owner approves. */
+function createRequest_(u, shop, type, lines, reason) {
+  if (!lines || !lines.length) throw new Error('Add at least one frame.');
+  return withLock_(function () {
+    var st = loadStock_(), t = new Date(), rows = [];
+    var id = newId_('RQ');
+    lines.forEach(function (l) {
+      var i = l.sku ? st.bySku[String(l.sku)] : resolve_(st, l, false);
+      if (i == null) i = -1;
+      var key = i >= 0 ? String(st.rows[i][C.SKU]) : skuKey(l.model, l.colour, l.size);
+      if (!key) return;
+      if (i < 0 && type !== 'STOCK IN') throw new Error('Not in the stock list: ' + key);
+      rows.push([id, t, shop, type, key, Number(l.qty) || 0, reason || '', 'PENDING', u.name, '', '',
+        JSON.stringify({ uid: u.id, model: l.model || '', colour: l.colour || '', size: l.size || '', upc: l.upc || '', desc: l.desc || '' })]);
+    });
+    if (!rows.length) throw new Error('Add at least one frame.');
+    var sh = sheetOrCreate_(SHEET_REQ, REQ_HEAD);
+    sh.getRange(sh.getLastRow() + 1, 1, rows.length, REQ_HEAD.length).setValues(rows);
+    return { id: id, lines: rows.length, pending: true };
+  });
+}
+
+function requests_() {
+  return rows_(sheetOrCreate_(SHEET_REQ, REQ_HEAD), REQ_HEAD.length)
+    .filter(function (r) { return r[R.ID]; })
+    .map(function (r) {
+      var d = {}; try { d = JSON.parse(r[R.DET] || '{}'); } catch (e) {}
+      return { id: String(r[R.ID]), requested: fmt_(r[R.REQ]), shop: String(r[R.SHOP]), type: String(r[R.TYPE]), sku: String(r[R.SKU]),
+        qty: Number(r[R.QTY]) || 0, reason: String(r[R.REASON] || ''), status: String(r[R.STATUS]), by: String(r[R.BY]), uid: d.uid || '',
+        decidedBy: String(r[R.DECBY] || ''), decidedAt: fmt_(r[R.DECAT]) };
+    });
+}
+
+function editRequest_(id, fn) {
+  var sh = sheetOrCreate_(SHEET_REQ, REQ_HEAD), v = rows_(sh, REQ_HEAD.length), hit = [];
+  v.forEach(function (r, i) { if (String(r[R.ID]) === id && String(r[R.STATUS]) === 'PENDING') hit.push(i); });
+  if (!hit.length) throw new Error('Request ' + id + ' is no longer pending. Refresh and try again.');
+  hit.forEach(function (i) { fn(v[i]); });   // all lines first: any error stops before anything is written
+  hit.forEach(function (i) { sh.getRange(i + 2, 1, 1, REQ_HEAD.length).setValues([v[i]]); });
+}
+
+/** Owner approves (stock moves now) or rejects a Manager's request. */
+function api_decideRequest(auth, id, approve) {
+  var u = checkAdmin_(auth);
+  return withLock_(function () {
+    var t = new Date();
+    if (!approve) {
+      editRequest_(id, function (r) { r[R.STATUS] = 'REJECTED'; r[R.DECBY] = u.name; r[R.DECAT] = t; });
+      return { id: id, status: 'REJECTED' };
+    }
+    var st = loadStock_(), out = [];
+    editRequest_(id, function (r) {
+      var d = {}; try { d = JSON.parse(r[R.DET] || '{}'); } catch (e) {}
+      var shop = String(r[R.SHOP]), type = String(r[R.TYPE]), q = Number(r[R.QTY]) || 0;
+      if (st.col[shop] == null) throw new Error('Unknown shop ' + shop);
+      var i = resolve_(st, { sku: r[R.SKU], model: d.model, colour: d.colour, size: d.size, upc: d.upc, desc: d.desc }, type === 'STOCK IN');
+      if (i < 0) throw new Error('SKU not found: ' + r[R.SKU]);
+      var who = String(r[R.BY]), note = String(r[R.REASON] || '') + ' · approved by ' + u.name;
+      if (type === 'STOCK IN') out.push([t, shop, 'RECEIVE', st.rows[i][C.SKU], q, addQty_(st, i, shop, q), id, who, note]);
+      else if (type === 'STOCK OUT') out.push([t, shop, 'STOCK OUT', st.rows[i][C.SKU], -q, addQty_(st, i, shop, -q), id, who, note]);
+      else if (type === 'ADJUST') {
+        var c = st.col[shop], before = Number(st.rows[i][c]) || 0;
+        if (q !== before) { st.rows[i][c] = q; out.push([t, shop, 'ADJUST', st.rows[i][C.SKU], q - before, q, id, who, note + ' (was ' + before + ')']); }
+      }
+      r[R.STATUS] = 'APPROVED'; r[R.DECBY] = u.name; r[R.DECAT] = t;
+    });
+    saveStock_(st); log_(out);
+    return { id: id, status: 'APPROVED', moved: out.length };
+  });
+}
+
+/** The requester (or the owner) withdraws a pending request. */
+function api_cancelRequest(auth, id) {
+  var u = checkUser_(auth);
+  return withLock_(function () {
+    editRequest_(id, function (r) {
+      var d = {}; try { d = JSON.parse(r[R.DET] || '{}'); } catch (e) {}
+      if (!u.admin && d.uid !== u.id) throw new Error('Only the person who asked can cancel this request.');
+      r[R.STATUS] = 'CANCELLED'; r[R.DECBY] = u.name; r[R.DECAT] = new Date();
+    });
+    return { id: id, status: 'CANCELLED' };
+  });
+}
+
+/* ---------------- notifications (owner) ---------------- */
+
+/** Movements by other people since the owner last looked, plus what is waiting for approval. */
+function api_notifications(auth) {
+  var u = checkUser_(auth);
+  if (!u.admin) return { unread: 0, pending: 0, rows: [] };
+  var seen = Number(PropertiesService.getScriptProperties().getProperty('seen_' + u.id) || 0);
+  var mine = u.name.toLowerCase();
+  var rows = logRows_().filter(function (x) { return x.staff.toLowerCase() !== mine; });
+  var unread = rows.filter(function (x) { return x.t.getTime() > seen; }).length;
+  var recent = rows.slice(-60).reverse().map(function (x) {
+    return { time: x.time, shop: x.shop, type: x.type, sku: x.sku, qty: x.qty, bal: x.bal, staff: x.staff, note: x.note, ref: x.ref, unread: x.t.getTime() > seen };
+  });
+  var pend = {};
+  requests_().forEach(function (r) { if (r.status === 'PENDING') pend[r.id] = 1; });
+  transfers_().forEach(function (t) { if (t.status === 'PENDING') pend[t.id] = 1; });
+  return { unread: unread, pending: Object.keys(pend).length, rows: recent };
+}
+
+function api_markSeen(auth) {
+  var u = checkUser_(auth);
+  PropertiesService.getScriptProperties().setProperty('seen_' + u.id, String(Date.now()));
+  return true;
 }
 
 /** Activity across SKUs for the Report tab. Staff without adjust rights see only their own shop. */

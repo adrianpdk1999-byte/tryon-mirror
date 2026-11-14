@@ -12,6 +12,12 @@ Staff can see straight away which shop has a frame. It does not depend on any PO
 
 ### Logins, cost codes, transfers
 - **Users tab**: one row per person: `UserID | Name | Shop | Password | Role (Staff/Admin) | Active (Y/N)`. Set Active to `N` to block someone. Change a password by editing the cell; that person is logged out on their next refresh.
+- **Roles (Users tab, Role column)**:
+  - **Staff**: look up stock, record sales (Sold today), confirm arrival of approved transfers.
+  - **Manager**: Staff + *request* stock in, stock out (non-sale removals), adjustments and transfers for their own shop. Nothing moves until the owner approves.
+  - **Admin** (owner): everything directly; approves or rejects requests (Report → Approvals, Transfer tab).
+- **Requests tab**: every Manager request with status (PENDING / APPROVED / REJECTED / CANCELLED), who asked and who decided.
+- **Notifications**: the owner's 🔔 shows movements by anyone else since last opened, plus requests waiting. It refreshes every minute while the app is open.
 - **Logins tab**: every login, with time, user, shop and device.
 - **Adjust column (Users tab, column G)**: who may adjust stock counts. `Y` = their own shop, `ALL` = any shop, blank = no. Admin can always adjust.
 - **Report tab (app)**: Export (stock list to Excel, any shop/brand), Adjust (set counted quantity with a reason; logged as ADJUST), Activity (all movements by shop/type/date, to Excel), Import (Admin; replaces a shop's stock from a POS export). Tap any frame for its full activity, including the opening stock loaded from the POS reports.
