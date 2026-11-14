@@ -257,7 +257,8 @@ function log_(entries) {
 
 function cleanLines_(lines) {
   return (lines || []).map(function (l) {
-    return { sku: l.sku || '', model: l.model, colour: l.colour, size: l.size, upc: l.upc, desc: l.desc, qty: Math.round(Number(l.qty) || 0) };
+    return { sku: l.sku || '', model: l.model, colour: l.colour, size: l.size, upc: l.upc, desc: l.desc, qty: Math.round(Number(l.qty) || 0),
+      rcpt: String(l.rcpt || '').trim() };
   }).filter(function (l) { return l.qty > 0 && (l.sku || l.model || l.upc); });
 }
 
@@ -326,11 +327,12 @@ function api_getData(auth) {
 function api_recordSales(auth, lines, note, shop) {
   var u = checkUser_(auth), code = shopFor_(u, shop);
   lines = cleanLines_(lines);
+  if (lines.some(function (l) { return !l.rcpt; })) throw new Error('Receipt number is required for every frame sold.');
   return withLock_(function () {
     var st = loadStock_(), t = new Date(), out = [];
     lines.forEach(function (l) {
       var i = resolve_(st, l); if (i < 0) return;
-      out.push([t, code, 'SOLD', st.rows[i][C.SKU], -l.qty, addQty_(st, i, code, -l.qty), '', u.name, note || '']);
+      out.push([t, code, 'SOLD', st.rows[i][C.SKU], -l.qty, addQty_(st, i, code, -l.qty), l.rcpt, u.name, note || '']);
     });
     saveStock_(st); log_(out);
     return { saved: out.length };

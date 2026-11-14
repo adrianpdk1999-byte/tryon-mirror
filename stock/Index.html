@@ -61,6 +61,9 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 .brands{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 .brands button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;font-weight:700;font-size:14px}
 .brands button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.brands .shopbtn{margin-left:auto}
+.brands .shopbtn.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.shoppanel{background:var(--chip);border-radius:12px;padding:8px}
 .pager{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center;margin:14px 0}
 .pager button{min-width:40px;height:40px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-weight:700}
 .pager button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
@@ -86,6 +89,8 @@ a.btn{text-decoration:none}
 .qty{display:flex;align-items:center;gap:4px}
 .qty button{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--card);font-weight:800}
 .qty input{width:52px;text-align:center;padding:7px 4px}
+.rcpt input{margin-top:6px;padding:7px 8px;font-size:14px}
+.rcpt input.missing{border-color:var(--bad);background:var(--bad-bg)}
 .newfields{display:grid;grid-template-columns:1.3fr 1fr .7fr;gap:6px;margin-top:6px}
 .newfields input{padding:7px 8px;font-size:14px}
 .newfields .upc{grid-column:1/-1}
@@ -130,7 +135,7 @@ b.neg{color:var(--bad)}
 
 <script>
 /* Watchdog: a separate script, so it still runs if the main script fails. Shows the error on screen. */
-window.SF_VERSION = '2026-11-14a';
+window.SF_VERSION = '2026-11-14b';
 window.SF_ERRORS = [];
 window.addEventListener('error', function (e) {
   window.SF_ERRORS.push((e.message || 'Error') + (e.lineno ? ' (line ' + e.lineno + ')' : ''));
@@ -365,10 +370,11 @@ function loginView(){
 function findView(){
   return `<input id="q" type="search" placeholder="e.g. 2140 901, or scan UPC" value="${esc(S.q)}" autocomplete="off">
     <div class="row" style="margin-top:8px;justify-content:space-between">
-      <label class="row" style="margin:0;color:var(--ink);font-size:14px"><input type="checkbox" id="only" ${S.onlyStock?'checked':''} style="width:auto"> In stock somewhere</label>
+      <label class="row" style="margin:0;color:var(--ink);font-size:14px"><input type="checkbox" id="only" ${S.onlyStock?'checked':''} style="width:auto"> Hide sold-out frames</label>
       <button class="btn alt small" data-act="refresh">↻ Refresh</button></div>
-    <div class="brands" aria-label="Shop">${[{code:'', name:'All shops'}, ...S.data.shops].map(x => `<button data-act="branch" data-c="${esc(x.code)}" class="${S.branch===x.code?'on':''}">${esc(x.name)}</button>`).join('')}</div>
-    <div class="brands">${['', ...brands()].map(b => `<button data-act="brand" data-b="${esc(b)}" class="${S.brand===b?'on':''}">${esc(b||'All brands')}</button>`).join('')}</div>
+    <div class="brands">${['', ...brands()].map(b => `<button data-act="brand" data-b="${esc(b)}" class="${S.brand===b?'on':''}">${esc(b||'All brands')}</button>`).join('')}
+      <button data-act="shopPanel" class="shopbtn ${S.branch?'on':''}">${S.branch ? '🏬 ' + esc(shortName(S.branch)) + ' ✕' : '🏬 Shop ▾'}</button></div>
+    ${S.shopPanel && !S.branch ? `<div class="brands shoppanel">${S.data.shops.map(x => `<button data-act="branch" data-c="${esc(x.code)}">${esc(x.name)}</button>`).join('')}</div>` : ''}
     <div class="muted" id="count" style="margin-top:6px"></div><div id="results"></div><div id="pager"></div>`;
 }
 const PAGE = 40;
@@ -412,7 +418,8 @@ function lineEditor(k, allowNew){
            <input placeholder="Size 50" value="${esc(l.size||'')}" data-f="size" data-i="${i}" data-k="${k}" inputmode="numeric">
            <input class="upc" placeholder="UPC (optional)" value="${esc(l.upc||'')}" data-f="upc" data-i="${i}" data-k="${k}" inputmode="numeric">
          </div>`;
-    return `<div class="line"><div>${head}</div>
+    const rc = k==='sold' ? `<div class="rcpt"><input placeholder="Receipt no. (required)" value="${esc(l.rcpt||'')}" data-f="rcpt" data-i="${i}" data-k="${k}" class="${S.rcptCheck && !String(l.rcpt||'').trim() ? 'missing' : ''}" autocomplete="off"></div>` : '';
+    return `<div class="line"><div>${head}${rc}</div>
       <div class="qty"><button data-act="dec" data-i="${i}" data-k="${k}">−</button>
         <input value="${l.qty}" inputmode="numeric" data-f="qty" data-i="${i}" data-k="${k}">
         <button data-act="inc" data-i="${i}" data-k="${k}">+</button>
@@ -431,7 +438,8 @@ function soldView(){
   return `<h2>Sold today · ${esc(shopName(S.shop))}</h2>
     <p class="muted">At closing, add every Ray-Ban and Oakley frame sold today (${esc(d)}). The list is kept on this phone until you save it.</p>
     ${lineEditor('sold', true)}
-    <label>Note (optional)</label><input id="note" value="${esc(S.note)}" placeholder="e.g. receipt numbers">
+    <p class="muted" style="margin:4px 0 0">Every frame needs its receipt number. Two frames on one receipt: type the same number on both.</p>
+    <label>Note (optional)</label><input id="note" value="${esc(S.note)}" placeholder="e.g. paid by card">
     ${msg('sold')}
     <p><button class="btn wide" data-act="saveSold" ${S.busy||!S.lines.sold.length?'disabled':''}>Save sales &amp; deduct stock</button></p>`;
 }
@@ -727,7 +735,7 @@ async function imageB64(f, max, q){
 /* ---------- line helpers ---------- */
 function addLine(k, it, qty){
   const L = S.lines[k];
-  const ex = L.find(l => l.sku && l.sku === it.sku);
+  const ex = L.find(l => l.sku && l.sku === it.sku && !(k==='sold' && String(l.rcpt||'').trim()));
   if (ex) ex.qty += qty || 1; else L.unshift({sku:it.sku, qty:qty || 1});
   saveLines(k);
 }
@@ -801,7 +809,8 @@ document.addEventListener('click', async e => {
     } catch(err){ S.msg.adj = {t:'err', s:'Not saved: ' + err.message}; }
     S.busy = false; render(); return;
   }
-  if (a==='branch'){ S.branch = t.dataset.c; S.page = 1; render(); return; }
+  if (a==='branch'){ S.branch = t.dataset.c; S.shopPanel = false; S.page = 1; render(); return; }
+  if (a==='shopPanel'){ if (S.branch){ S.branch = ''; S.shopPanel = false; } else S.shopPanel = !S.shopPanel; S.page = 1; render(); return; }
   if (a==='pg'){ S.page = +t.dataset.p; renderResults(); $('#q').scrollIntoView({block:'start'}); window.scrollBy(0, -70); return; }
   if (a==='close'){ if (e.target===t || t.classList.contains('x')) $('#sheet').innerHTML = ''; return; }
   if (a==='login'){
@@ -838,9 +847,27 @@ document.addEventListener('click', async e => {
   if (a==='addnew'){ S.lines[k].unshift({model:'', colour:'', size:'', upc:'', qty:1}); saveLines(k); render(); return; }
   if (a==='toSold' || a==='toXfer'){ const kk = a==='toSold' ? 'sold' : 'xfer'; addLine(kk, S.bySku[t.dataset.sku], 1); $('#sheet').innerHTML = ''; S.tab = kk; render(); return; }
   if (a==='saveSold'){
-    const n = S.lines.sold.reduce((x, l) => x + (+l.qty||0), 0);
-    if (!confirm(`Deduct ${n} frame(s) sold today from ${shopName(S.shop)}?`)) return;
-    return submit('sold', 'api_recordSales', [S.auth, linesForServer('sold'), S.note, S.shop], r => `Saved ${r.saved} line(s). Stock updated.`);
+    const L = S.lines.sold, miss = L.filter(l => !String(l.rcpt||'').trim()).length;
+    if (miss){ S.rcptCheck = true; S.msg.sold = {t:'err', s:`Receipt number is required: ${miss} line(s) still need one (shown in red).`}; return render(); }
+    if (badNewLines('sold')){ S.msg.sold = {t:'err', s:'New item lines need at least a model, e.g. RB2140.'}; return render(); }
+    const n = L.reduce((x, l) => x + (+l.qty||0), 0), groups = {};
+    L.forEach((l, i) => { const r = String(l.rcpt).trim(); (groups[r] = groups[r] || []).push(i); });
+    if (!confirm(`Deduct ${n} frame(s) sold today from ${shopName(S.shop)}?\n${Object.keys(groups).length} receipt(s): ${Object.keys(groups).join(', ')}`)) return;
+    S.busy = true; S.msg.sold = null; render();
+    const all = linesForServer('sold'); let saved = 0, done = [];
+    try {
+      for (const [r, idx] of Object.entries(groups)){
+        const res = await call('api_recordSales', S.auth, idx.map(i => Object.assign({}, all[i], {rcpt:r})), 'Receipt ' + r + (S.note ? ' · ' + S.note : ''), S.shop);
+        saved += res.saved; done = done.concat(idx);
+      }
+      S.lines.sold = []; S.note = ''; S.rcptCheck = false;
+      S.msg.sold = {t:'ok', s:`Saved ${saved} line(s) on ${Object.keys(groups).length} receipt(s). Stock updated.`};
+    } catch(err){
+      S.lines.sold = L.filter((l, i) => !done.includes(i));
+      S.msg.sold = {t:'err', s:'Not all saved: ' + err.message + (done.length ? ` (${done.length} line(s) were saved and removed from the list)` : '')};
+    }
+    saveLines('sold'); try { await loadData(); } catch(e){}
+    S.busy = false; render(); return;
   }
   if (a==='saveRecv'){
     if (!confirm(`Add these frames to ${shopName(S.shop)} stock?`)) return;
